@@ -1,0 +1,17 @@
+[package]
+name = "dualoj-judge"
+version = "0.1.0"
+authors = ["zLeoAlex <z.alex.leo@outlook.com>"]
+edition = "2018"
+default-run = "server"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+kube = "0.51.0"
+k8s-openapi = { version = "0.11.0", default-features = false, features = ["v1_20"] }
+tokio = { version = "1", features = ["full"] }
+futures = "*"
+serde_json = "*"
+
+pretty_env_logger = "*"

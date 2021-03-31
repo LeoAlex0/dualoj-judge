@@ -18,7 +18,7 @@ replace-with = 'tuna'\n\
 [source.tuna]\n\
 registry = \"https://mirrors.tuna.tsinghua.edu.cn/git/crates.io-index.git\"\n\
 " | tee /root/.cargo/config && \
-  cargo install --debug --bin=server --path=. --root=/
+  cargo install --bin=server --path=. --root=/
 
 
 FROM docker.io/library/alpine:latest

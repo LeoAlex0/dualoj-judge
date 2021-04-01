@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: judger
+  namespace: dualoj
+spec:
+  selector:
+    matchLabels:
+      app: judger
+  template:
+    metadata:
+      labels:
+        app: judger
+    spec:
+      serviceAccountName: judger
+      containers:
+        - name: judger
+          image: dualoj-judge:demo
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+          ports:
+            - containerPort: 3000

@@ -20,7 +20,7 @@ async fn main() -> Result<(), kube::Error> {
 
     // Get a strongly typed handle to the Kubernetes API for interacting
     // with pods in the "default" namespace.
-    let pods: Api<Pod> = Api::namespaced(client, "default");
+    let pods: Api<Pod> = Api::namespaced(client, "dualoj");
 
     println!("PodList Get OK:");
     let pod_list = pods.list(&ListParams::default()).await?;
@@ -31,7 +31,8 @@ async fn main() -> Result<(), kube::Error> {
         "apiVersion": "v1",
         "kind": "Pod",
         "metadata": {
-            "name": "my-pod"
+            "name": "my-pod",
+            "namespace": "dualoj"
         },
         "spec": {
             "containers": [

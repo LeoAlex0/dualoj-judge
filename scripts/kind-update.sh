@@ -1,4 +1,4 @@
 #!/bin/sh -xe
 
-DOCKER_BUILDKIT=1 docker build -t dualoj-judge:demo .
-kind load docker-image dualoj-judge:demo
+podman build -t dualoj-judge:demo .
+podman save localhost/dualoj-judge:demo | sudo $(which kind) load image-archive /dev/stdin

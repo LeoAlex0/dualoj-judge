@@ -27,25 +27,27 @@ async fn main() -> Result<(), kube::Error> {
     pod_list.iter().for_each(|it| println!("{:?}", it));
 
     // Create a pod from JSON
-    let pod = serde_json::from_value(serde_json::json!({
-        "apiVersion": "v1",
-        "kind": "Pod",
-        "metadata": {
-            "name": "my-pod",
-            "namespace": "dualoj"
-        },
-        "spec": {
-            "containers": [
-                {
-                    "name": "my-container",
-                    "image": "myregistry.azurecr.io/hello-world:v1",
-                },
-            ],
-        }
-    }))?;
-
     // Create the pod
-    let _pod = pods.create(&PostParams::default(), &pod).await?;
+    pods.create(
+        &PostParams::default(),
+        &serde_json::from_value(serde_json::json!({
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "my-pod",
+                "namespace": "dualoj"
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "my-container",
+                        "image": "myregistry.azurecr.io/hello-world:v1",
+                    },
+                ],
+            }
+        }))?,
+    )
+    .await?;
 
     // Start a watch call for pods matching our name
     let lp = ListParams::default()

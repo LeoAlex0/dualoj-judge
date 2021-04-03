@@ -15,7 +15,7 @@ spec:
       serviceAccountName: judger
       containers:
         - name: judger
-          image: dualoj-judge:demo
+          image: localhost/dualoj-judge:demo
           resources:
             limits:
               memory: "128Mi"

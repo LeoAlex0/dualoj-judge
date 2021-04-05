@@ -15,3 +15,5 @@ futures = "*"
 serde_json = "*"
 
 pretty_env_logger = "*"
+
+rocket = "0.4.7"

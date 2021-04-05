@@ -17,6 +17,9 @@ ALL Components are communicated with HTTP.
 
 Build tester's image & solver's image
 
+Some Option should be tested:
+- [ ] kaniko
+
 ## Judge runner
 
 1. Give a poster uri & post api key to post test result.

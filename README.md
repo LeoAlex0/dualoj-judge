@@ -18,6 +18,7 @@ ALL Components are communicated with HTTP.
 Build tester's image & solver's image
 
 Some Option should be tested:
+
 - [ ] kaniko
 
 ## Judge runner
@@ -31,5 +32,6 @@ accept all directory save & archive.
 ## Internal registry
 
 Some Option should be tested:
+
 - [ ] harbor/harbor
 - [ ] docker.io/library/registry

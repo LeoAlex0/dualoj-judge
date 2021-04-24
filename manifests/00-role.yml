@@ -5,5 +5,5 @@ metadata:
   name: build-machine
 rules:
   - apiGroups: ["rbac.authorization.k8s.io", ""]
-    resources: ["pods"]
+    resources: ["pods", "jobs"]
     verbs: ["get", "list", "watch", "create"]

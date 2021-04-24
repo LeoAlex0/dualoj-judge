@@ -16,9 +16,51 @@ spec:
       containers:
         - name: judger
           image: localhost/dualoj-judge:demo
+          envFrom:
+            - configMapRef:
+                name: registry-config
+            - configMapRef:
+                name: buildkitd-config
           resources:
             limits:
               memory: "128Mi"
               cpu: "500m"
           ports:
             - containerPort: 3000
+          volumesMount:
+            - name: certs
+              readOnly: true
+              mountPath: /certs
+      volumes:
+        - name: certs
+          secret:
+            secretName: judger-certs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: judger
+  namespace: dualoj
+spec:
+  selector:
+    app: judger
+  ports:
+    - port: 80
+      targetPort: 3000
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: judger
+  namespace: dualoj
+  labels:
+    name: judger
+spec:
+  rules:
+    - http:
+        paths:
+          - pathType: Prefix
+            path: /info
+            backend:
+              service:
+                serviceName: judger

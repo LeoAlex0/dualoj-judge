@@ -1,4 +1,4 @@
 #!/bin/sh -xe
 
-podman build -t dualoj-judge:demo .
-podman save localhost/dualoj-judge:demo | sudo "$(which kind)" load image-archive /dev/stdin
+DOCKER_BUILDKIT=1 docker build -f Cargo.toml -t localhost/dualoj-judge:demo .
+"$(which kind)" load docker-image localhost/dualoj-judge:demo

@@ -1,3 +1,3 @@
 #!/bin/sh -xe
 
-podman -it --rm docker.io/library/alpine:latest
+podman run -it --rm -v "$(pwd)":/workdir docker.io/library/rust:alpine3.13

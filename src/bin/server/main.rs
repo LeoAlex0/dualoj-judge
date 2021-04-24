@@ -1,5 +1,7 @@
 #![feature(decl_macro)]
 
+use std::env;
+
 use rocket::http::Cookies;
 
 #[macro_use]
@@ -13,7 +15,17 @@ fn user_id(mut cookies: Cookies) -> String {
     }
 }
 
+#[get("/env/<env>")]
+fn get_env(env: String) -> String {
+    env::var(env).unwrap_or("<NULL>".into())
+}
+
+#[get("/")]
+fn default() -> String {
+    "welcome to judger, try: /env or /uid".into()
+}
+
 fn main() {
-    let route = routes![user_id];
+    let route = routes![user_id, get_env];
     rocket::ignite().mount("/", route).launch();
 }

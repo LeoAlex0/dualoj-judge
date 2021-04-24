@@ -27,7 +27,7 @@ spec:
               cpu: "500m"
           ports:
             - containerPort: 3000
-          volumesMount:
+          volumeMounts:
             - name: certs
               readOnly: true
               mountPath: /certs
@@ -46,21 +46,26 @@ spec:
     app: judger
   ports:
     - port: 80
-      targetPort: 3000
+      name: http
+      targetPort: 8000
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: judger
   namespace: dualoj
   labels:
     name: judger
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   rules:
     - http:
         paths:
-          - pathType: Prefix
-            path: /info
+          - path: /judger(/|$)(.*)
+            pathType: Prefix
             backend:
               service:
-                serviceName: judger
+                name: judger
+                port:
+                  name: http

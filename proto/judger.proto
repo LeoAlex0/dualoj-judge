@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package judger;
+
+message Chunk { bytes Content = 1; }
+
+enum UploadStatusCode {
+  Unknown = 0;
+  Ok = 1;
+  Failed = 2;
+}
+
+message UploadStatus {
+  string Message = 1;
+  UploadStatusCode Code = 2;
+}
+
+service BuilderService {
+  rpc UploadArchive(stream Chunk) returns (UploadStatus) {}
+}

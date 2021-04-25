@@ -3,6 +3,9 @@ use k8s_openapi::api::core::v1::Pod;
 use kube::api::{Api, ListParams, Meta, PostParams, WatchEvent};
 use kube::Client;
 
+#[path = "../../proto.rs"]
+mod proto;
+
 extern crate pretty_env_logger;
 
 #[tokio::main]

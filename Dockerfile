@@ -3,9 +3,13 @@ FROM docker.io/clux/muslrust:nightly-2021-04-23 as build
 WORKDIR /workspace
 
 COPY Cargo.toml .
+COPY Cargo.lock .
 COPY build.rs ./build.rs
 COPY src/ ./src
+COPY proto/ ./proto
 
+RUN rustup component add rustfmt
+RUN apt update && apt-get install -y protobuf-compiler
 RUN cargo install --bin=server --path=. --root=/
 
 FROM docker.io/library/alpine:3.13

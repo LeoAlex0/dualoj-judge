@@ -39,3 +39,7 @@ Some Option should be tested:
 
 - [ ] harbor/harbor
 - [ ] docker.io/library/registry
+
+## Known BUGS
+
+- [ ] `docker build -f ./Cargo.toml .` failed, caused by `denzp/cargo-wharf` [issue#32](https://github.com/denzp/cargo-wharf/issues/32)

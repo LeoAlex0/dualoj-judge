@@ -26,7 +26,8 @@ spec:
               memory: "128Mi"
               cpu: "500m"
           ports:
-            - containerPort: 3000
+            - containerPort: 50051
+              name: grpc
           volumeMounts:
             - name: certs
               readOnly: true
@@ -45,9 +46,9 @@ spec:
   selector:
     app: judger
   ports:
-    - port: 80
-      name: http
-      targetPort: 8000
+    - port: 50051
+      name: grpc
+      targetPort: grpc
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -57,15 +58,21 @@ metadata:
   labels:
     name: judger
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   rules:
     - http:
         paths:
-          - path: /judger(/|$)(.*)
+          - path: /
             pathType: Prefix
             backend:
               service:
                 name: judger
                 port:
-                  name: http
+                  name: grpc
+  tls:
+    - secretName: ingress-tls
+      hosts:
+        - "localhost"
+        - "10.0.1.2"

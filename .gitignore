@@ -7,3 +7,4 @@
 
 manifests/01-buildkitd-certs.yaml
 manifests/01-judger-certs.yaml
+manifests/01-ingress-tls.yaml

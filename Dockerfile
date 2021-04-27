@@ -10,7 +10,10 @@ COPY proto/ ./proto
 
 RUN rustup component add rustfmt
 RUN apt update && apt-get install -y protobuf-compiler
-RUN cargo install --bin=server --path=. --root=/
+RUN \
+    --mount=type=cache,target=/root/.cargo/registry\
+    --mount=type=cache,target=target\
+    cargo install --bin=server --path=. --root=/
 
 FROM docker.io/library/alpine:3.13
 

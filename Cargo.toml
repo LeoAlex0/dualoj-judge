@@ -38,7 +38,7 @@ buildkit-frontend = "0.3.0"
 buildkit-llb = "0.2.0"
 
 # Data transfer between server & client
-tonic = "0.4.1"
+tonic = { version = "0.4.1", features = ["tls"] }
 prost = "0.7.0"
 
 # Some async support

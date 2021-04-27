@@ -15,6 +15,9 @@ message UploadStatus {
   UploadStatusCode Code = 2;
 }
 
-service BuilderService {
+message EchoMsg { string Message = 1; }
+
+service Builder {
   rpc UploadArchive(stream Chunk) returns (UploadStatus) {}
+  rpc Echo(EchoMsg) returns (EchoMsg) {}
 }

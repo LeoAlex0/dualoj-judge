@@ -3,7 +3,7 @@
 DIR=./.cert
 BUILDKITD_SAN="buildkitd.dualoj.svc.local"
 JUDGER_SAN="judger.dualoj.svc.local"
-INGRESS_SAN="localhost 10.0.1.2"
+INGRESS_SAN="localhost workstation 10.0.1.2"
 CLIENT_SAN="localhost"
 
 mkdir -p ${DIR}/{buildkitd,judger,ingress,client}

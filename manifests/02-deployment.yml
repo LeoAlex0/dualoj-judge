@@ -62,7 +62,18 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   rules:
-    - http:
+    - host: "localhost"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: judger
+                port:
+                  name: grpc
+    - host: "workstation"
+      http:
         paths:
           - path: /
             pathType: Prefix
@@ -75,4 +86,4 @@ spec:
     - secretName: ingress-tls
       hosts:
         - "localhost"
-        - "10.0.1.2"
+        - "workstation"

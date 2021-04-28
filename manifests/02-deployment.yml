@@ -25,6 +25,12 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "500m"
+          readinessProbe:
+            exec:
+              command:
+                - "sh"
+                - "-c"
+                - "[ $(echo 'helloworld' | client --addr 'grpc://localhost:50051' echo) = 'helloworld' ]"
           ports:
             - containerPort: 50051
               name: grpc

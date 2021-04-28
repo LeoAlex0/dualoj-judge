@@ -20,17 +20,16 @@ impl TryFrom<Cli> for Executor {
     type Error = Box<dyn std::error::Error>;
 
     fn try_from(cli: Cli) -> Result<Self, Self::Error> {
-        let mut tls = tonic::transport::ClientTlsConfig::new();
+        let mut endpoint = tonic::transport::channel::Channel::from_shared(cli.addr)?;
 
         if let Some(path) = &cli.ca_cert_path {
-            tls = tls.ca_certificate(Certificate::from_pem(std::fs::read(path)?));
+            endpoint = endpoint.tls_config(
+                tonic::transport::ClientTlsConfig::new()
+                    .ca_certificate(Certificate::from_pem(std::fs::read(path)?)),
+            )?
         }
 
-        let channel = block_on(
-            tonic::transport::channel::Channel::from_shared(cli.addr)?
-                .tls_config(tls)?
-                .connect(),
-        )?;
+        let channel = block_on(endpoint.connect())?;
 
         let client = BuilderClient::new(channel);
 

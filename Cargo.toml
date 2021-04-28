@@ -43,7 +43,9 @@ prost = "0.7.0"
 
 # Some async support
 async-trait = "0.1.48"
-failure = "0.1.8"
+
+# CLI support
+structopt = "0.3.21"
 
 [build-dependencies]
 tonic-build = "0.4.1"

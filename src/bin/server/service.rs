@@ -1,13 +1,15 @@
 #[path = "../../proto.rs"]
 mod proto;
 use futures::StreamExt;
-use proto::{builder_server::Builder, builder_server::BuilderServer, Chunk, EchoMsg, UploadStatus};
+pub use proto::{builder_server::Builder, builder_server::BuilderServer, Chunk, EchoMsg, UploadStatus};
 use tonic::{Request, Response, Status, Streaming};
 
-const ARCHIVE_SIZE_LIMIT_BYTES: usize = 10 << 20; // 10 MiB
+use structopt::StructOpt;
 
-#[derive(Default)]
-pub(crate) struct FileService {}
+#[derive(Default, StructOpt)]
+pub(crate) struct FileService {
+    archive_size_limit: usize,
+}
 
 #[tonic::async_trait]
 impl Builder for FileService {
@@ -19,7 +21,7 @@ impl Builder for FileService {
             .into_inner()
             .filter_map(|it| async { it.ok() })
             .flat_map(|x| futures::stream::iter(x.content))
-            .take(ARCHIVE_SIZE_LIMIT_BYTES);
+            .take(self.archive_size_limit);
         todo!()
     }
 

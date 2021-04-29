@@ -1,18 +1,15 @@
+mod cli;
+mod exe;
 mod service;
 
-use service::*;
+use std::convert::TryFrom;
+
+use structopt::StructOpt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "0.0.0.0:50051".parse().unwrap();
-
-    let server = FileService::new_default();
-
-    println!("Server Started at {}", addr);
-
-    tonic::transport::Server::builder()
-        .add_service(server)
-        .serve(addr)
+    exe::Executor::try_from(cli::CLI::from_args())?
+        .serve()
         .await
         .map_err(|e| e.into())
 }

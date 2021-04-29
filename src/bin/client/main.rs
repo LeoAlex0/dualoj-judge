@@ -7,7 +7,7 @@ use structopt::StructOpt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    exe::Executor::try_from(cli::Cli::from_args())?
+    exe::Executor::try_from(cli::CLI::from_args())?
         .invoke()
         .await
 }

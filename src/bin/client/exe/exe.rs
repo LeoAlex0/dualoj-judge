@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use futures::executor::block_on;
 use tonic::transport::{Certificate, Channel};
 
-use crate::cli::{commands::SubCommand, Cli};
+use crate::cli::{commands::SubCommand, CLI};
 
 #[path = "../../../proto.rs"]
 mod proto;
@@ -16,10 +16,10 @@ pub struct Executor {
     pub(crate) client: BuilderClient<Channel>,
 }
 
-impl TryFrom<Cli> for Executor {
+impl TryFrom<CLI> for Executor {
     type Error = Box<dyn std::error::Error>;
 
-    fn try_from(cli: Cli) -> Result<Self, Self::Error> {
+    fn try_from(cli: CLI) -> Result<Self, Self::Error> {
         let mut endpoint = tonic::transport::channel::Channel::from_shared(cli.addr)?;
 
         if let Some(path) = &cli.ca_cert_path {

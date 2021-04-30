@@ -13,8 +13,6 @@ tokio = { version = "1.4.0", features = ["full"] }
 futures = "0.3.13"
 serde_json = "1.0.64"
 
-pretty_env_logger = "*"
-
 # For Invoke buildkit tools
 buildkit-frontend = "0.3.0"
 buildkit-llb = "0.2.0"
@@ -28,6 +26,13 @@ async-trait = "0.1.48"
 
 # CLI support
 structopt = "0.3.21"
+
+# Archive support
+tar = "0.4.33"
+
+# Server Log support
+log = "0.4.14"
+pretty_env_logger = "0.4.0"
 
 [build-dependencies]
 tonic-build = "0.4.1"

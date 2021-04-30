@@ -11,9 +11,13 @@ pub use proto::*;
 
 use proto::builder_client::BuilderClient;
 
+pub(crate) struct Client {
+    pub(crate) raw: BuilderClient<Channel>,
+}
+
 pub struct Executor {
     pub(crate) command: SubCommand,
-    pub(crate) client: BuilderClient<Channel>,
+    pub(crate) client: Client,
 }
 
 impl TryFrom<CLI> for Executor {
@@ -34,7 +38,7 @@ impl TryFrom<CLI> for Executor {
         let client = BuilderClient::new(channel);
 
         Ok(Executor {
-            client,
+            client: Client { raw: client },
             command: cli.command,
         })
     }

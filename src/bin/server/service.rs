@@ -1,14 +1,18 @@
 #[path = "../../proto.rs"]
 mod proto;
-use futures::StreamExt;
-pub use proto::{builder_server::Builder, builder_server::BuilderServer, Chunk, EchoMsg, UploadStatus};
+
+use std::env::temp_dir;
+
+use log::{debug, info};
+
+use prost::bytes::Buf;
+pub use proto::{
+    builder_server::Builder, builder_server::BuilderServer, Chunk, EchoMsg, UploadStatus,
+};
 use tonic::{Request, Response, Status, Streaming};
 
-use structopt::StructOpt;
-
-#[derive(Default, StructOpt)]
 pub(crate) struct FileService {
-    archive_size_limit: usize,
+    pub archive_size_limit: usize,
 }
 
 #[tonic::async_trait]
@@ -17,22 +21,43 @@ impl Builder for FileService {
         &self,
         request: Request<Streaming<Chunk>>,
     ) -> Result<Response<UploadStatus>, Status> {
-        let _input = request
-            .into_inner()
-            .filter_map(|it| async { it.ok() })
-            .flat_map(|x| futures::stream::iter(x.content))
-            .take(self.archive_size_limit);
-        todo!()
+        let mut stream = request.into_inner();
+        let mut data = Vec::new();
+        let mut received_size = 0usize;
+
+        while let Some(chunk) = stream.message().await? {
+            received_size += chunk.content.len();
+            debug!("received: {} Byte", received_size);
+
+            if received_size > self.archive_size_limit {
+                return Err(Status::new(
+                    tonic::Code::Aborted,
+                    format!(
+                        "too large archive, max size is {} Byte",
+                        self.archive_size_limit
+                    ),
+                ));
+            }
+
+            data.push(chunk.content);
+        }
+        let raw = data.concat();
+
+        debug!("received complete, unpacking");
+
+        let mut tar = tar::Archive::new(raw.reader());
+        tar.unpack(temp_dir())?;
+
+        debug!("unpacking complete");
+
+        Ok(Response::new(UploadStatus {
+            code: 0,
+            message: format!("upload OK, upload to {}", temp_dir().display()),
+        }))
     }
 
     async fn echo(&self, request: Request<EchoMsg>) -> Result<Response<EchoMsg>, Status> {
-        println!("Request in: {}", request.get_ref().message);
+        info!("Request in: {}", request.get_ref().message);
         Ok(Response::new(request.into_inner()))
-    }
-}
-
-impl FileService {
-    pub fn new_default() -> BuilderServer<FileService> {
-        BuilderServer::new(Self::default())
     }
 }

@@ -8,19 +8,19 @@ pub struct CLI {
     #[structopt(long, default_value = "10000000")]
     pub archive_size_limit: usize,
 
-    /// CA Certificate content
+    /// Buildkitd Client CA Certificate content
     #[structopt(long, env = "ca.pem")]
     pub ca_cert: Option<String>,
 
-    /// Key content
+    /// Buildkitd Client Key content
     #[structopt(long, env = "key.pem")]
     pub key: Option<String>,
 
-    /// Certificate content
+    /// Buildkitd Client Certificate content
     #[structopt(long, env = "cert.pem")]
     pub cert: Option<String>,
 
-    /// Address to listen
+    /// Buildkitd Client Address to listen
     #[structopt(long, env = "ADDR", default_value = "0.0.0.0:50051")]
     pub addr: SocketAddr,
 }

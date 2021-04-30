@@ -19,6 +19,8 @@ spec:
           env:
             - name: RUST_LOG
               value: debug
+            - name: SIZE_LIMIT
+              value: "50000000"
           envFrom:
             - configMapRef:
                 name: registry-config
@@ -69,7 +71,7 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-body-size: 50m
 spec:
   rules:
     - host: "localhost"

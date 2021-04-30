@@ -5,7 +5,7 @@ use futures::{stream::iter, StreamExt};
 use super::exe::Chunk;
 use super::exe::Client;
 
-const CHUNK_LEN: usize = 1000;
+const CHUNK_LEN: usize = 1 << 20; // 1 MiB
 
 impl Client {
     pub(crate) async fn upload(&mut self, path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
@@ -29,7 +29,7 @@ impl Client {
                     .chunks(CHUNK_LEN)
                     .zip(iter(0..))
                     .map(move |(x, id)| {
-                        println!("Chunking: {}/{}", id * CHUNK_LEN + x.len(), &len);
+                        println!("Sending: {}/{}", id * CHUNK_LEN + x.len(), &len);
                         Chunk { content: x }
                     }),
             )

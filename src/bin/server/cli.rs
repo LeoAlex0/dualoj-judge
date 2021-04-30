@@ -5,7 +5,7 @@ use structopt::StructOpt;
 #[derive(StructOpt)]
 pub struct CLI {
     /// Size-limit of uploaded archives
-    #[structopt(long, default_value = "10000000")]
+    #[structopt(long, default_value = "10000000",env = "SIZE_LIMIT")]
     pub archive_size_limit: usize,
 
     /// Buildkitd Client CA Certificate content

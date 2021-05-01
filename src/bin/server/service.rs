@@ -9,6 +9,7 @@ use prost::bytes::Buf;
 pub use proto::{
     builder_server::Builder, builder_server::BuilderServer, Chunk, EchoMsg, UploadStatus,
 };
+use tar::Archive;
 use tonic::{Request, Response, Status, Streaming};
 
 pub(crate) struct FileService {
@@ -43,16 +44,19 @@ impl Builder for FileService {
         }
         let raw = data.concat();
 
+        let uuid = uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_URL, &raw[..]);
+        let mut save_dir = temp_dir();
+        save_dir.push(uuid.to_string());
+
         debug!("received complete, unpacking");
 
-        let mut tar = tar::Archive::new(raw.reader());
-        tar.unpack(temp_dir())?;
+        Archive::new(raw.reader()).unpack(&save_dir)?;
 
-        debug!("unpacking complete");
+        debug!("unpacked to {} complete", save_dir.display());
 
         Ok(Response::new(UploadStatus {
             code: 0,
-            message: format!("upload OK, upload to {}", temp_dir().display()),
+            message: format!("upload OK, upload to {}", save_dir.display()),
         }))
     }
 

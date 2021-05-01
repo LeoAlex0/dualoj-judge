@@ -34,5 +34,8 @@ tar = "0.4.33"
 log = "0.4.14"
 pretty_env_logger = "0.4.0"
 
+# Archive image management
+uuid = { version = "0.8.2", features = ["v5"] }
+
 [build-dependencies]
 tonic-build = "0.4.1"

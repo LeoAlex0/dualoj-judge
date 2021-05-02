@@ -6,8 +6,9 @@ use tonic::transport::{
     Server,
 };
 
-use crate::service::BuilderServer;
 use crate::{cli::CLI, service::FileService};
+use dualoj_judge::proto::builder_server::BuilderServer;
+
 pub struct Executor {
     router: Router<BuilderServer<FileService>, Unimplemented>,
     addr: SocketAddr,

@@ -5,7 +5,7 @@ use std::env::temp_dir;
 use log::debug;
 use prost::bytes::Buf;
 
-use crate::service::proto::{Chunk, UploadStatus};
+use dualoj_judge::proto::{Chunk, UploadStatus};
 use tar::Archive;
 use tonic::{Request, Response, Status, Streaming};
 

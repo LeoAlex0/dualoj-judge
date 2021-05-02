@@ -1,11 +1,11 @@
-#[path = "../../proto.rs"]
-pub mod proto;
+mod build;
+
 mod upload;
 
 use log::info;
 
-pub use proto::{
-    builder_server::Builder, builder_server::BuilderServer, Chunk, EchoMsg, UploadStatus,
+use dualoj_judge::proto::{
+    builder_server::Builder, BuildStatus, Chunk, EchoMsg, UploadStatus, Uuid,
 };
 
 use tonic::{Request, Response, Status};
@@ -26,5 +26,9 @@ impl Builder for FileService {
         request: Request<tonic::Streaming<Chunk>>,
     ) -> Result<Response<UploadStatus>, Status> {
         self.upload_archive(request).await
+    }
+
+    async fn build(&self, request: Request<Uuid>) -> Result<Response<BuildStatus>, Status> {
+        todo!()
     }
 }

@@ -5,11 +5,9 @@ use tonic::transport::{Certificate, Channel};
 
 use crate::cli::{commands::SubCommand, CLI};
 
-#[path = "../../../proto.rs"]
-mod proto;
-pub use proto::*;
+pub use dualoj_judge::proto::*;
 
-use proto::builder_client::BuilderClient;
+use dualoj_judge::proto::builder_client::BuilderClient;
 
 pub(crate) struct Client {
     pub(crate) raw: BuilderClient<Channel>,

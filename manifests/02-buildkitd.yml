@@ -92,5 +92,4 @@ metadata:
   name: buildkitd-config
   namespace: dualoj
 data:
-  buildkitd-url: buildkitd.dualoj.svc.cluster.local:1234
-
+  buildkitd-url: "grpcs://buildkitd.dualoj.svc.cluster.local:1234"

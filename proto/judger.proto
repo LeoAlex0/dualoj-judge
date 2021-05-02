@@ -4,7 +4,7 @@ package judger;
 
 message Chunk { bytes Content = 1; }
 
-enum UploadStatusCode {
+enum StatusCode {
   Unknown = 0;
   Ok = 1;
   Failed = 2;
@@ -12,12 +12,19 @@ enum UploadStatusCode {
 
 message UploadStatus {
   string Message = 1;
-  UploadStatusCode Code = 2;
+  StatusCode Code = 2;
 }
 
 message EchoMsg { string Message = 1; }
 
+message UUID { bytes Data = 1; }
+message BuildStatus {
+  StatusCode Code = 1;
+  string Message = 2;
+}
+
 service Builder {
   rpc UploadArchive(stream Chunk) returns (UploadStatus) {}
   rpc Echo(EchoMsg) returns (EchoMsg) {}
+  rpc Build(UUID) returns (BuildStatus) {}
 }

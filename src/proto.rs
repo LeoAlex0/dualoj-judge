@@ -14,6 +14,10 @@ pub mod moby {
             pub mod types {
                 tonic::include_proto!("moby.buildkit.v1.types");
             }
+
+            pub mod ops {
+                tonic::include_proto!("pb");
+            }
         }
     }
 }

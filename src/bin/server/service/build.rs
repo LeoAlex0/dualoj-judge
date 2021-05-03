@@ -1,6 +1,5 @@
 use std::env::temp_dir;
 
-use proto::{BuildStatus, Uuid};
 use tonic::{Code, Request, Response, Status};
 
 use dualoj_judge::proto;
@@ -16,8 +15,6 @@ impl FileService {
 
         let mut dockerfile_path = temp_dir().clone();
         dockerfile_path.push("Dockerfile");
-
-        let docker_source = Source::local(dockerfile_path.to_string_lossy());
 
         todo!()
     }

@@ -27,6 +27,7 @@ impl TryFrom<CLI> for Executor {
     fn try_from(value: CLI) -> Result<Self, Self::Error> {
         let server = BuilderServer::new(FileService {
             archive_size_limit: value.archive_size_limit,
+            buildkitd_url: value.buildkit_url,
         });
 
         Ok(Executor {

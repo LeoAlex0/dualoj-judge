@@ -9,9 +9,14 @@ default-run = "server"
 [dependencies]
 kube = "0.51.0"
 k8s-openapi = { version = "0.11.0", default-features = false, features = ["v1_20"] }
-tokio = { version = "1.4.0", features = ["full"] }
-futures = "0.3.13"
+tokio = { version = "1.5", features = ["full"] }
+tokio-util = { version = "*", features = ["compat"] }
+futures = "0.3.0"
 serde_json = "1.0.64"
+serde = "1.0.125"
+url = "2.2.1"
+regex = "1.4.5"
+glob = "0.3.0"
 
 # Data transfer between server & client
 tonic = { version = "0.4.1", features = ["tls"] }
@@ -20,6 +25,7 @@ prost-types = "0.7.0"
 
 # Some async support
 async-trait = "0.1.48"
+failure = "0.1.8"
 
 # CLI support
 structopt = "0.3.21"

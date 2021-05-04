@@ -8,5 +8,23 @@ pub(crate) enum SubCommand {
     Echo,
 
     /// Upload to Build Server
-    Upload { path: PathBuf },
+    Upload(UploadParam),
+
+    /// Build an Docker project through uuid
+    Build(BuildParam),
+}
+
+#[derive(StructOpt)]
+pub(crate) struct UploadParam {
+    pub path: PathBuf,
+
+    /// Exclude file/dir (support glob pattern)
+    #[structopt(long)]
+    pub exclude: Vec<String>,
+}
+
+#[derive(StructOpt)]
+pub(crate) struct BuildParam {
+    /// UUID of uploaded directory
+    pub uuid: uuid::Uuid,
 }

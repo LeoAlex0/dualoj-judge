@@ -2,16 +2,16 @@ mod build;
 
 mod upload;
 
+use futures::channel::mpsc::UnboundedReceiver;
 use log::info;
 
-use dualoj_judge::proto::{
-    builder_server::Builder, BuildStatus, Chunk, EchoMsg, UploadStatus, Uuid,
-};
+use dualoj_judge::proto::{builder_server::Builder, BuildMsg, Chunk, EchoMsg, UploadStatus, Uuid};
 
 use tonic::{Request, Response, Status};
 
 pub(crate) struct FileService {
     pub archive_size_limit: usize,
+    pub buildkitd_url: String,
 }
 
 #[tonic::async_trait]
@@ -28,7 +28,9 @@ impl Builder for FileService {
         self.upload_archive(request).await
     }
 
-    async fn build(&self, request: Request<Uuid>) -> Result<Response<BuildStatus>, Status> {
-        todo!()
+    type BuildStream = UnboundedReceiver<Result<BuildMsg, Status>>;
+
+    async fn build(&self, request: Request<Uuid>) -> Result<Response<Self::BuildStream>, Status> {
+        self.build(request).await
     }
 }

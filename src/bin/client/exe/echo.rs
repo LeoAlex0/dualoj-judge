@@ -1,7 +1,8 @@
 use std::io::BufRead;
 
-use super::exe::Client;
-use super::exe::EchoMsg;
+use dualoj_judge::proto::EchoMsg;
+
+use super::Client;
 
 impl Client {
     pub(crate) async fn echo(&mut self) -> Result<(), Box<dyn std::error::Error>> {

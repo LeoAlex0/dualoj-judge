@@ -18,13 +18,15 @@ message UploadStatus {
 message EchoMsg { string Message = 1; }
 
 message UUID { bytes Data = 1; }
-message BuildStatus {
-  StatusCode Code = 1;
-  string Message = 2;
+message BuildMsg {
+  oneof MsgOrReturn {
+    string Message = 1;
+    StatusCode Code = 2;
+  }
 }
 
 service Builder {
   rpc UploadArchive(stream Chunk) returns (UploadStatus) {}
   rpc Echo(EchoMsg) returns (EchoMsg) {}
-  rpc Build(UUID) returns (BuildStatus) {}
+  rpc Build(UUID) returns (stream BuildMsg) {}
 }

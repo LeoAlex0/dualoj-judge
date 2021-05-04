@@ -7,7 +7,7 @@ use structopt::StructOpt;
 #[derive(StructOpt)]
 pub(crate) struct CLI {
     /// Address of server to connect to.
-    #[structopt(long = "addr", default_value = "localhost:443")]
+    #[structopt(long = "addr", default_value = "grpcs://localhost:443")]
     pub addr: String,
 
     /// command to execute

@@ -21,6 +21,10 @@ pub(crate) struct UploadParam {
     /// Exclude file/dir (support glob pattern)
     #[structopt(long)]
     pub exclude: Vec<String>,
+
+    /// Only output uuid returned(or nothing when failed).
+    #[structopt(long, short)]
+    pub brief: bool,
 }
 
 #[derive(StructOpt)]

@@ -1,8 +1,9 @@
 use futures::{stream::iter, StreamExt};
 use glob::Pattern;
-use log::debug;
+use log::{debug, info};
 
-use dualoj_judge::proto::Chunk;
+use dualoj_judge::proto::{upload_status, Chunk};
+use uuid::Uuid;
 
 use super::Client;
 use crate::cli::commands::UploadParam;
@@ -12,14 +13,18 @@ const CHUNK_LEN: usize = 1 << 20; // 1 MiB
 impl Client {
     pub(crate) async fn upload(
         &mut self,
-        UploadParam { path, exclude }: UploadParam,
+        UploadParam {
+            path,
+            exclude,
+            brief,
+        }: UploadParam,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let blacklist: Vec<_> = exclude
             .iter()
             .filter_map(|x| Pattern::new(x).ok())
             .collect();
 
-        println!("Compressing");
+        info!("Compressing");
 
         let data = {
             let mut tar = tar::Builder::new(Vec::new());
@@ -47,7 +52,7 @@ impl Client {
         };
 
         let len = data.len();
-        println!("Tar length:{}, Sending", len);
+        info!("Tar length:{}, Sending", len);
 
         let response = self
             .raw
@@ -56,19 +61,35 @@ impl Client {
                     .chunks(CHUNK_LEN)
                     .zip(iter(0..))
                     .map(move |(x, id)| {
-                        println!("Sending: {}/{}", id * CHUNK_LEN + x.len(), &len);
+                        info!("Sending: {}/{}", id * CHUNK_LEN + x.len(), &len);
                         Chunk { content: x }
                     }),
             )
             .await;
 
         match response {
-            Ok(response) => println!(
-                "Response {}: {}",
-                response.get_ref().code,
-                response.get_ref().message
-            ),
-            Err(e) => println!("Server-side error received: {}", e),
+            Ok(response) => {
+                if !brief {
+                    println!(
+                        "Response {}: {:#?}",
+                        response.get_ref().code,
+                        response.get_ref().result,
+                    );
+                } else {
+                    match &response.get_ref().result {
+                        Some(e) => match e {
+                            upload_status::Result::ErrorMsg(msg) => {
+                                eprintln!("{}", msg)
+                            }
+                            upload_status::Result::FolderId(id) => {
+                                println!("{}", Uuid::from_slice(&id.data)?)
+                            }
+                        },
+                        None => {}
+                    }
+                }
+            }
+            Err(e) => eprintln!("Server-side error received: {}", e),
         }
 
         Ok(())

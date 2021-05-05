@@ -1,16 +1,14 @@
 use std::{env::temp_dir, process::Stdio};
 
-use futures::{channel::mpsc, io::BufReader, AsyncBufReadExt, SinkExt, TryFutureExt, TryStreamExt};
-use log::debug;
+use futures::{channel::mpsc, io::BufReader, AsyncBufReadExt, SinkExt, StreamExt, TryStreamExt};
 use tokio::process::Command;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 use tonic::{Code, Request, Response, Status};
 
 use crate::service::FileService;
 use dualoj_judge::proto::{build_msg::MsgOrReturn, BuildMsg, Uuid};
-use dualoj_judge::to_internal;
 
-type BuildStream = futures::channel::mpsc::UnboundedReceiver<Result<BuildMsg, Status>>;
+type BuildStream = futures::channel::mpsc::Receiver<Result<BuildMsg, Status>>;
 
 impl FileService {
     pub(crate) async fn build(
@@ -20,19 +18,23 @@ impl FileService {
         // Get UUID from request.
         let uuid = uuid::Uuid::from_slice(&request.into_inner().data)
             .map_err(|e| Status::new(Code::Unavailable, format!("UUID is unavaliable: {}", e)))?;
-        let context_dir = temp_dir();
-        temp_dir().push(uuid.to_string());
 
+        // Construct context-dir
+        let mut context_dir = temp_dir();
+        context_dir.push(uuid.to_string());
+
+        // Execute buildctl to build
         let mut child = Command::new("buildctl")
             .args(&[
                 format!("--addr=tcp://{}", self.buildkitd_url).as_str(),
                 "--tlsdir=/certs",
                 "build",
                 "--frontend=dockerfile.v0",
-                format!("--local=context=\"{}\"", context_dir.display()).as_str(),
-                format!("--local=dockerfile=\"{}\")", context_dir.display()).as_str(),
+                format!("--local=context={}", context_dir.display()).as_str(),
+                format!("--local=dockerfile={}", context_dir.display()).as_str(),
             ])
             .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .spawn()
             .unwrap();
 
@@ -41,39 +43,54 @@ impl FileService {
             .take()
             .ok_or(Status::internal("buildkitd stdout cannot piped"))?;
 
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or(Status::internal("buildctl stderr cannot piped"))?;
+
+        let stdout_lines = BufReader::new(stdout.compat()).lines().map_ok(|line| {
+            Ok::<_, Status>(BuildMsg {
+                msg_or_return: Some(MsgOrReturn::Stdout(line)),
+            })
+        });
+        let stderr_lines = BufReader::new(stderr.compat()).lines().map_ok(|line| {
+            Ok::<_, Status>(BuildMsg {
+                msg_or_return: Some(MsgOrReturn::Stderr(line)),
+            })
+        });
+
         // ready for return.
-        // TODO: use channel instead unbounded;
-        let (tx, rx) = mpsc::unbounded();
+        let (mut tx, rx) = mpsc::channel(5);
+        let tx1 = tx.clone();
+        let tx2 = tx.clone();
 
-        BufReader::new(stdout.compat())
-            .lines()
-            .map_err(to_internal)
-            .try_for_each(|line| async {
-                let mut tx = tx.clone();
-                debug!("buildctl output: {}", line);
+        tokio::spawn(async move {
+            stdout_lines
+                .filter_map(|it| async { it.ok() })
+                .map(|it| Ok(it))
+                .forward(tx1)
+                .await
+        });
 
-                tx.send(Ok(BuildMsg {
-                    msg_or_return: Some(MsgOrReturn::Message(line)),
-                }))
+        tokio::spawn(async move {
+            stderr_lines
+                .filter_map(|it| async { it.ok() })
+                .map(|it| Ok(it))
+                .forward(tx2)
                 .await
-                .map_err(to_internal)
-            })
-            .and_then(|_| async {
-                let mut tx = tx.clone();
-                let exit_code = child
-                    .try_wait()
-                    .map_err(to_internal)?
-                    .ok_or(Status::internal("no exit code"))?
-                    .code()
-                    .ok_or(Status::internal("buildctl exit by signal"))?;
-                tx.send(Ok(BuildMsg {
-                    msg_or_return: Some(MsgOrReturn::Code(exit_code)),
-                }))
-                .await
-                .map_err(to_internal)?;
-                Ok::<(), Status>(())
-            })
-            .await?;
+        });
+
+        tokio::spawn(async move {
+            if let Ok(code) = child.wait().await {
+                if let Some(code) = code.code() {
+                    tx.send(Ok(BuildMsg {
+                        msg_or_return: Some(MsgOrReturn::Code(code)),
+                    }))
+                    .await
+                    .unwrap_or_default();
+                }
+            }
+        });
 
         Ok(Response::new(rx))
     }

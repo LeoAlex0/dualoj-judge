@@ -5,7 +5,7 @@ use std::env::temp_dir;
 use log::debug;
 use prost::bytes::Buf;
 
-use dualoj_judge::proto::{Chunk, UploadStatus};
+use dualoj_judge::proto::{upload_status, Chunk, UploadStatus, Uuid};
 use tar::Archive;
 use tonic::{Request, Response, Status, Streaming};
 
@@ -48,7 +48,9 @@ impl FileService {
 
         Ok(Response::new(UploadStatus {
             code: 0,
-            message: format!("upload OK, upload to {}", save_dir.display()),
+            result: Some(upload_status::Result::FolderId(Uuid {
+                data: uuid.as_bytes().to_vec(),
+            })),
         }))
     }
 }

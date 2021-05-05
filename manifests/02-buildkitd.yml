@@ -58,7 +58,7 @@ spec:
             runAsGroup: 1000
           resources:
             limits:
-              memory: "512Mi"
+              memory: "1Gi"
               cpu: "1000m"
           ports:
             - containerPort: 1234

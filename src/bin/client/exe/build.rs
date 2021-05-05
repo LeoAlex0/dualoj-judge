@@ -21,7 +21,8 @@ impl Client {
             match msg_or_return {
                 None => println!("None MSG"),
                 Some(MsgOrReturn::Code(code)) => println!("`buildctl` exited, code: {}", code),
-                Some(MsgOrReturn::Message(line)) => println!("{}", line),
+                Some(MsgOrReturn::Stdout(line)) => println!("{}", line),
+                Some(MsgOrReturn::Stderr(line)) => eprintln!("{}", line),
             }
         }
         Ok(())

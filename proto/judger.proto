@@ -1,8 +1,8 @@
-syntax = "proto3";
+syntax = "proto2";
 
 package judger;
 
-message Chunk { bytes Content = 1; }
+message Chunk { required bytes Content = 1; }
 
 enum StatusCode {
   Unknown = 0;
@@ -11,17 +11,21 @@ enum StatusCode {
 }
 
 message UploadStatus {
-  string Message = 1;
-  StatusCode Code = 2;
+  oneof Result {
+    string ErrorMsg = 1;
+    UUID FolderID = 2;
+  }
+  required StatusCode Code = 255;
 }
 
-message EchoMsg { string Message = 1; }
+message EchoMsg { required string Message = 1; }
 
-message UUID { bytes Data = 1; }
+message UUID { required bytes Data = 1; }
 message BuildMsg {
   oneof MsgOrReturn {
-    string Message = 1;
-    StatusCode Code = 2;
+    string Stdout = 1;
+    string Stderr = 2;
+    StatusCode Code = 255;
   }
 }
 

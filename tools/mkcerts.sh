@@ -1,8 +1,8 @@
 #!/bin/bash -xe
 
 DIR=./.cert
-BUILDKITD_SAN="buildkitd.dualoj.svc.local"
-JUDGER_SAN="judger.dualoj.svc.local"
+BUILDKITD_SAN="buildkitd.dualoj.svc.cluster.local"
+JUDGER_SAN="judger.dualoj.svc.cluster.local"
 INGRESS_SAN="localhost workstation 10.0.1.2"
 CLIENT_SAN="localhost"
 

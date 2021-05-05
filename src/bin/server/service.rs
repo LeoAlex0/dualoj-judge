@@ -2,7 +2,7 @@ mod build;
 
 mod upload;
 
-use futures::channel::mpsc::UnboundedReceiver;
+use futures::channel::mpsc;
 use log::info;
 
 use dualoj_judge::proto::{builder_server::Builder, BuildMsg, Chunk, EchoMsg, UploadStatus, Uuid};
@@ -28,7 +28,7 @@ impl Builder for FileService {
         self.upload_archive(request).await
     }
 
-    type BuildStream = UnboundedReceiver<Result<BuildMsg, Status>>;
+    type BuildStream = mpsc::Receiver<Result<BuildMsg, Status>>;
 
     async fn build(&self, request: Request<Uuid>) -> Result<Response<Self::BuildStream>, Status> {
         self.build(request).await

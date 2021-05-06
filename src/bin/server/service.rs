@@ -28,7 +28,7 @@ impl Builder for FileService {
         self.upload_archive(request).await
     }
 
-    type BuildStream = mpsc::Receiver<Result<BuildMsg, Status>>;
+    type BuildStream = mpsc::UnboundedReceiver<Result<BuildMsg, Status>>;
 
     async fn build(&self, request: Request<Uuid>) -> Result<Response<Self::BuildStream>, Status> {
         self.build(request).await

@@ -6,15 +6,13 @@ use tokio_util::compat::TokioAsyncReadCompatExt;
 use tonic::{Code, Request, Response, Status};
 
 use crate::service::FileService;
-use dualoj_judge::proto::{build_msg::MsgOrReturn, BuildMsg, Uuid};
-
-type BuildStream = futures::channel::mpsc::Receiver<Result<BuildMsg, Status>>;
+use dualoj_judge::proto::{build_msg::MsgOrReturn, builder_server::Builder, BuildMsg, Uuid};
 
 impl FileService {
     pub(crate) async fn build(
         &self,
         request: Request<Uuid>,
-    ) -> Result<Response<BuildStream>, Status> {
+    ) -> Result<Response<<FileService as Builder>::BuildStream>, Status> {
         // Get UUID from request.
         let uuid = uuid::Uuid::from_slice(&request.into_inner().data)
             .map_err(|e| Status::new(Code::Unavailable, format!("UUID is unavaliable: {}", e)))?;
@@ -60,7 +58,7 @@ impl FileService {
         });
 
         // ready for return.
-        let (mut tx, rx) = mpsc::channel(5);
+        let (mut tx, rx) = mpsc::unbounded();
         let tx1 = tx.clone();
         let tx2 = tx.clone();
 

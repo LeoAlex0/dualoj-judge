@@ -39,14 +39,14 @@ pretty_env_logger = "0.4.0"
 uuid = { version = "0.8.2", features = ["v5"] }
 
 # Connect to buildkit
-buildkit-proto = "0.2.1"
-buildkit-llb = "0.2.1"
-buildkit-frontend = "0.3.1"
+# buildkit-proto = "0.2.1"
+# buildkit-llb = "0.2.1"
+# buildkit-frontend = "0.3.1"
 
 [build-dependencies]
 tonic-build = "0.4.1"
 
-[patch.crates-io]
-buildkit-proto = { path = "vendor/rust-buildkit/buildkit-proto" }
-buildkit-llb = { path = "vendor/rust-buildkit/buildkit-llb" }
-buildkit-frontend = { path = "vendor/rust-buildkit/buildkit-frontend" }
+# [patch.crates-io]
+# buildkit-proto = { path = "vendor/rust-buildkit/buildkit-proto" }
+# buildkit-llb = { path = "vendor/rust-buildkit/buildkit-llb" }
+# buildkit-frontend = { path = "vendor/rust-buildkit/buildkit-frontend" }

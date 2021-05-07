@@ -30,6 +30,13 @@ impl FileService {
                 "--frontend=dockerfile.v0",
                 format!("--local=context={}", context_dir.display()).as_str(),
                 format!("--local=dockerfile={}", context_dir.display()).as_str(),
+                format!(
+                    "--output=type=image,name={}/{}/{},registry.insecure=true,push=true",
+                    self.registry_url,
+                    self.registry_username,
+                    uuid.to_string()
+                )
+                .as_str(),
             ])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

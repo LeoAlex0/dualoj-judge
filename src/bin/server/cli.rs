@@ -24,6 +24,14 @@ pub struct CLI {
     #[structopt(long, env = "cert.pem")]
     pub cert: Option<String>,
 
+    /// In-cluster registry url
+    #[structopt(long, env = "registry-url", default_value = "localhost")]
+    pub registry_url: String,
+
+    /// The username when upload builded image to internal registry.
+    #[structopt(long, default_value = "build")]
+    pub registry_username: String,
+
     /// Network address for judger to listen
     #[structopt(long, env = "ADDR", default_value = "0.0.0.0:50051")]
     pub addr: SocketAddr,

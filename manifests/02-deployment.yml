@@ -12,7 +12,7 @@ spec:
       labels:
         app: judger
     spec:
-      serviceAccountName: judger
+      serviceAccountName: judger-account
       containers:
         - name: judger
           image: localhost/dualoj-judge:demo
@@ -21,6 +21,18 @@ spec:
               value: debug
             - name: SIZE_LIMIT
               value: "50000000"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
           envFrom:
             - configMapRef:
                 name: registry-config

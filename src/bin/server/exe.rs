@@ -28,6 +28,8 @@ impl TryFrom<CLI> for Executor {
         let server = BuilderServer::new(FileService {
             archive_size_limit: value.archive_size_limit,
             buildkitd_url: value.buildkit_url,
+            registry_url: value.registry_url,
+            registry_username: value.registry_username,
         });
 
         Ok(Executor {

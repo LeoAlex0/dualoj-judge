@@ -4,6 +4,9 @@ metadata:
   namespace: dualoj
   name: build-machine
 rules:
-  - apiGroups: ["rbac.authorization.k8s.io", ""]
-    resources: ["pods", "jobs"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["pods"]
     verbs: ["get", "list", "watch", "create"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "delete"]

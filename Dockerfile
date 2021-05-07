@@ -1,9 +1,9 @@
 FROM docker.io/clux/muslrust:nightly-2021-04-23 as build
 
-WORKDIR /workspace
-
 RUN rustup component add rustfmt
 RUN apt update && apt-get install -y protobuf-compiler
+
+WORKDIR /workspace
 
 COPY Cargo.toml .
 COPY Cargo.lock .

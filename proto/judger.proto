@@ -29,8 +29,14 @@ message BuildMsg {
   }
 }
 
+message NewJobResponse {
+  optional string ErrorMsg = 1;
+  required StatusCode Code = 255;
+}
+
 service Builder {
   rpc UploadArchive(stream Chunk) returns (UploadStatus) {}
   rpc Echo(EchoMsg) returns (EchoMsg) {}
   rpc Build(UUID) returns (stream BuildMsg) {}
+  rpc NewJob(UUID) returns (NewJobResponse) {}
 }

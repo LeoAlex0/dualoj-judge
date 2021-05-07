@@ -5,7 +5,7 @@ metadata:
   namespace: dualoj
 subjects:
   - kind: ServiceAccount
-    name: judger
+    name: judger-account
     namespace: dualoj
 roleRef:
   kind: Role

@@ -317,8 +317,6 @@ dependencies = [
  "prost",
  "prost-types",
  "regex",
- "serde",
- "serde_json",
  "structopt",
  "tar",
  "tokio",

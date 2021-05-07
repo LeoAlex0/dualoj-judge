@@ -1,6 +1,5 @@
 mod cli;
 mod exe;
-mod k8s_demo;
 
 use std::convert::TryFrom;
 use structopt::StructOpt;

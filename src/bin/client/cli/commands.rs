@@ -12,6 +12,9 @@ pub(crate) enum SubCommand {
 
     /// Build an Docker project through uuid
     Build(BuildParam),
+
+    /// New a temporary Job to test the builded image
+    NewJob(NewJobParam),
 }
 
 #[derive(StructOpt)]
@@ -29,6 +32,12 @@ pub(crate) struct UploadParam {
 
 #[derive(StructOpt)]
 pub(crate) struct BuildParam {
+    /// UUID of uploaded directory
+    pub uuid: uuid::Uuid,
+}
+
+#[derive(StructOpt)]
+pub(crate) struct NewJobParam {
     /// UUID of uploaded directory
     pub uuid: uuid::Uuid,
 }

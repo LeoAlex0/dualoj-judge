@@ -1,5 +1,5 @@
 mod build;
-
+mod new_job;
 mod upload;
 
 use futures::channel::mpsc;
@@ -12,6 +12,8 @@ use tonic::{Request, Response, Status};
 pub(crate) struct FileService {
     pub archive_size_limit: usize,
     pub buildkitd_url: String,
+    pub registry_url: String,
+    pub registry_username: String,
 }
 
 #[tonic::async_trait]
@@ -32,5 +34,12 @@ impl Builder for FileService {
 
     async fn build(&self, request: Request<Uuid>) -> Result<Response<Self::BuildStream>, Status> {
         self.build(request).await
+    }
+
+    async fn new_job(
+        &self,
+        request: Request<Uuid>,
+    ) -> Result<Response<dualoj_judge::proto::NewJobResponse>, Status> {
+        self.new_job(request).await
     }
 }

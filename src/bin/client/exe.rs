@@ -1,5 +1,6 @@
 mod build;
 mod echo;
+mod new_job;
 mod upload;
 
 use crate::cli::commands::SubCommand::*;
@@ -24,6 +25,7 @@ impl Executor {
             Echo => self.client.echo().await,
             Upload(param) => self.client.upload(param).await,
             Build(param) => self.client.build(param).await,
+            NewJob(param) => self.client.new_job(param).await,
         }
     }
 }

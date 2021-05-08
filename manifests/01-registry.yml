@@ -34,6 +34,30 @@ spec:
     - port: 80
       targetPort: 5000
 ---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: registry-ingress
+  namespace: dualoj
+  labels:
+    name: registry-ingress
+spec:
+  rules:
+    - host: registry.dualoj.svc.cluster.local
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: registry
+                port:
+                  number: 80
+  tls:
+    - secretName: registry-ingress
+      hosts:
+        - "registry.dualoj.svc.cluster.local"
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:

@@ -24,7 +24,7 @@ impl FileService {
         // Execute buildctl to build
         let mut child = Command::new("buildctl")
             .args(&[
-                format!("--addr=tcp://{}", self.buildkit.url).as_str(),
+                format!("--addr=tcp://{}", self.buildkit.buildkit_url).as_str(),
                 "--tlsdir=/certs",
                 "build",
                 "--frontend=dockerfile.v0",
@@ -32,7 +32,7 @@ impl FileService {
                 format!("--local=dockerfile={}", context_dir.display()).as_str(),
                 format!(
                     "--output=type=image,name={}/{}/{},registry.insecure=true,push=true",
-                    self.registry.url,
+                    self.registry.registry_url,
                     self.registry.username,
                     uuid.to_string()
                 )

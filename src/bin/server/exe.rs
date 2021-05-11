@@ -1,6 +1,7 @@
 use std::{convert::TryFrom, net::SocketAddr};
 
 use log::info;
+use tokio::{signal::ctrl_c, spawn};
 use tonic::transport::{
     server::{Router, Unimplemented},
     Server,
@@ -15,9 +16,13 @@ pub struct Executor {
 }
 
 impl Executor {
-    pub async fn serve(self) -> Result<(), tonic::transport::Error> {
+    pub async fn serve(self) -> Result<(), Box<dyn std::error::Error>> {
         info!("Server listen on {}", self.addr);
-        self.router.serve(self.addr).await
+
+        let rpc_thread = spawn(async move { self.router.serve(self.addr).await });
+
+        rpc_thread.await??;
+        Ok(())
     }
 }
 
@@ -27,9 +32,9 @@ impl TryFrom<CLI> for Executor {
     fn try_from(value: CLI) -> Result<Self, Self::Error> {
         let server = BuilderServer::new(FileService {
             archive_size_limit: value.archive_size_limit,
-            buildkitd_url: value.buildkit_url,
-            registry_url: value.registry_url,
-            registry_username: value.registry_username,
+            buildkit: value.buildkit,
+            registry: value.registry,
+            pod_env: value.pod_env,
         });
 
         Ok(Executor {

@@ -1,9 +1,12 @@
 use std::net::SocketAddr;
 
 use structopt::StructOpt;
+pub mod buildkit;
+pub mod pod_env;
+pub mod registry;
 
 #[derive(StructOpt)]
-pub struct CLI {
+pub(crate) struct CLI {
     /// Size-limit of uploaded archives
     #[structopt(long, default_value = "10000000", env = "SIZE_LIMIT")]
     pub archive_size_limit: usize,
@@ -12,27 +15,16 @@ pub struct CLI {
     #[structopt(long, env = "ca.pem")]
     pub ca_cert: Option<String>,
 
-    /// Buildkitd Server addr
-    #[structopt(long, env = "buildkitd-url", default_value = "localhost:1234")]
-    pub buildkit_url: String,
-
-    /// Buildkitd Client Key content
-    #[structopt(long, env = "key.pem")]
-    pub key: Option<String>,
-
-    /// Buildkitd Client Certificate content
-    #[structopt(long, env = "cert.pem")]
-    pub cert: Option<String>,
-
-    /// In-cluster registry url
-    #[structopt(long, env = "registry-url", default_value = "localhost")]
-    pub registry_url: String,
-
-    /// The username when upload builded image to internal registry.
-    #[structopt(long, default_value = "build")]
-    pub registry_username: String,
-
     /// Network address for judger to listen
     #[structopt(long, env = "ADDR", default_value = "0.0.0.0:50051")]
     pub addr: SocketAddr,
+
+    #[structopt(flatten)]
+    pub buildkit: buildkit::Param,
+
+    #[structopt(flatten)]
+    pub registry: registry::Param,
+
+    #[structopt(flatten)]
+    pub pod_env: pod_env::Param,
 }

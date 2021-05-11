@@ -1,4 +1,5 @@
 mod build;
+mod kube;
 mod new_job;
 mod upload;
 
@@ -9,11 +10,13 @@ use dualoj_judge::proto::{builder_server::Builder, BuildMsg, Chunk, EchoMsg, Upl
 
 use tonic::{Request, Response, Status};
 
+use crate::cli;
+
 pub(crate) struct FileService {
     pub archive_size_limit: usize,
-    pub buildkitd_url: String,
-    pub registry_url: String,
-    pub registry_username: String,
+    pub registry: cli::registry::Param,
+    pub buildkit: cli::buildkit::Param,
+    pub pod_env: cli::pod_env::Param,
 }
 
 #[tonic::async_trait]

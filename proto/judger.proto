@@ -30,7 +30,10 @@ message BuildMsg {
 }
 
 message NewJobResponse {
-  optional string ErrorMsg = 1;
+  oneof Result {
+    string ErrorMsg = 1;
+    UUID job_uid = 2;
+  }
   required StatusCode Code = 255;
 }
 

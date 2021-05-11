@@ -6,7 +6,9 @@ mod upload;
 use futures::channel::mpsc;
 use log::info;
 
-use dualoj_judge::proto::{builder_server::Builder, BuildMsg, Chunk, EchoMsg, UploadStatus, Uuid};
+use dualoj_judge::proto::{
+    controller_server::Controller, BuildMsg, Chunk, EchoMsg, UploadStatus, Uuid,
+};
 
 use tonic::{Request, Response, Status};
 
@@ -20,7 +22,7 @@ pub(crate) struct FileService {
 }
 
 #[tonic::async_trait]
-impl Builder for FileService {
+impl Controller for FileService {
     async fn echo(&self, request: Request<EchoMsg>) -> Result<Response<EchoMsg>, Status> {
         info!("Request in: {}", request.get_ref().message);
         Ok(Response::new(request.into_inner()))

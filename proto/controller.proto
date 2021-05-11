@@ -1,0 +1,45 @@
+syntax = "proto2";
+
+package dualoj.controller;
+
+message Chunk { required bytes Content = 1; }
+
+enum StatusCode {
+  Unknown = 0;
+  Ok = 1;
+  Failed = 2;
+}
+
+message UploadStatus {
+  oneof Result {
+    string ErrorMsg = 1;
+    UUID FolderID = 2;
+  }
+  required StatusCode Code = 255;
+}
+
+message EchoMsg { required string Message = 1; }
+
+message UUID { required bytes Data = 1; }
+message BuildMsg {
+  oneof MsgOrReturn {
+    string Stdout = 1;
+    string Stderr = 2;
+    StatusCode Code = 255;
+  }
+}
+
+message NewJobResponse {
+  oneof Result {
+    string ErrorMsg = 1;
+    UUID job_uid = 2;
+  }
+  required StatusCode Code = 255;
+}
+
+service Controller {
+  rpc UploadArchive(stream Chunk) returns (UploadStatus) {}
+  rpc Echo(EchoMsg) returns (EchoMsg) {}
+  rpc Build(UUID) returns (stream BuildMsg) {}
+  rpc NewJob(UUID) returns (NewJobResponse) {}
+}

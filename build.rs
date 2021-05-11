@@ -1,8 +1,17 @@
 use std::io;
 
 fn main() -> io::Result<()> {
-    // Local RPC
-    tonic_build::compile_protos("proto/judger.proto")?;
+    // Build Controller API (with client & server)
+    tonic_build::configure()
+        .build_client(true)
+        .build_server(true)
+        .compile(&["proto/controller.proto"], &["proto"])?;
+
+    // Build Judger API (for customize judger)
+    tonic_build::configure()
+        .build_client(false)
+        .build_server(true)
+        .compile(&["proto/judger.proto"], &["proto"])?;
 
     Ok(())
 }

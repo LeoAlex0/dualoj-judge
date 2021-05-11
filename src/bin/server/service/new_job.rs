@@ -4,12 +4,12 @@ use dualoj_judge::proto::{new_job_response, NewJobResponse, Uuid};
 use k8s_openapi::{
     api::{
         batch::v1::{Job, JobSpec},
-        core::v1::{Container, PodSpec, PodTemplateSpec, ResourceRequirements},
+        core::v1::{Container, Pod, PodSpec, PodTemplateSpec, ResourceRequirements},
     },
     apimachinery::pkg::{api::resource::Quantity, apis::meta::v1::OwnerReference},
 };
 use kube::{
-    api::{ObjectMeta, PostParams},
+    api::{AttachParams, ListParams, ObjectMeta, PostParams},
     Api,
 };
 use tonic::{Request, Response, Status};
@@ -54,7 +54,8 @@ impl FileService {
             self.registry.url, self.registry.username, uuid_str
         );
 
-        let jobs: Api<Job> = Api::namespaced(client, self.pod_env.namespace.as_str());
+        let jobs: Api<Job> = Api::namespaced(client.clone(), self.pod_env.namespace.as_str());
+        let pods: Api<Pod> = Api::namespaced(client, self.pod_env.namespace.as_str());
 
         let limits = {
             let mut limits = BTreeMap::new();
@@ -118,6 +119,16 @@ impl FileService {
                 },
             )
             .await?;
+
+        let _pod = pods
+            .list(&ListParams {
+                label_selector: Some(format!("job-name={}", uuid)),
+                timeout: Some(1),
+                limit: Some(1),
+
+                ..Default::default()
+            })
+            .await;
 
         let res = uuid::Uuid::from_str(created_job.metadata.uid.unwrap_or_default().as_str())?;
         Ok(res)

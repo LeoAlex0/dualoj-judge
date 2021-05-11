@@ -1,17 +1,21 @@
 use std::{convert::TryFrom, net::SocketAddr};
 
 use log::info;
-use tokio::{signal::ctrl_c, spawn};
+use tokio::{
+    select,
+    signal::{ctrl_c, unix::SignalKind},
+    spawn,
+};
 use tonic::transport::{
     server::{Router, Unimplemented},
     Server,
 };
 
 use crate::{cli::CLI, service::FileService};
-use dualoj_judge::proto::builder_server::BuilderServer;
+use dualoj_judge::proto::controller_server::ControllerServer;
 
 pub struct Executor {
-    router: Router<BuilderServer<FileService>, Unimplemented>,
+    router: Router<ControllerServer<FileService>, Unimplemented>,
     addr: SocketAddr,
 }
 
@@ -20,8 +24,14 @@ impl Executor {
         info!("Server listen on {}", self.addr);
 
         let rpc_thread = spawn(async move { self.router.serve(self.addr).await });
+        let mut term = tokio::signal::unix::signal(SignalKind::terminate())?;
 
-        rpc_thread.await??;
+        select! {
+            _ = ctrl_c() => {}
+            _ = term.recv() => {}
+        }
+
+        rpc_thread.abort();
         Ok(())
     }
 }
@@ -30,7 +40,7 @@ impl TryFrom<CLI> for Executor {
     type Error = tonic::transport::Error;
 
     fn try_from(value: CLI) -> Result<Self, Self::Error> {
-        let server = BuilderServer::new(FileService {
+        let server = ControllerServer::new(FileService {
             archive_size_limit: value.archive_size_limit,
             buildkit: value.buildkit,
             registry: value.registry,

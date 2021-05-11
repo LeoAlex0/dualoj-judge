@@ -5,13 +5,13 @@ mod upload;
 
 use crate::cli::commands::SubCommand::*;
 use crate::cli::{commands::SubCommand, CLI};
-use dualoj_judge::proto::builder_client::BuilderClient;
+use dualoj_judge::proto::controller_client::ControllerClient;
 use futures::executor::block_on;
 use std::convert::TryFrom;
 use tonic::transport::{Certificate, Channel};
 
 pub(crate) struct Client {
-    pub(crate) raw: BuilderClient<Channel>,
+    pub(crate) raw: ControllerClient<Channel>,
 }
 
 pub struct Executor {
@@ -45,7 +45,7 @@ impl TryFrom<CLI> for Executor {
 
         let channel = block_on(endpoint.connect())?;
 
-        let client = BuilderClient::new(channel);
+        let client = ControllerClient::new(channel);
 
         Ok(Executor {
             client: Client { raw: client },

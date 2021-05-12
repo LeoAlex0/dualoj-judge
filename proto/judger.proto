@@ -1,3 +1,27 @@
 syntax = "proto2";
 
 package dualoj.judger;
+
+enum TestCode {
+  Accepted = 1;
+  WrongAnswer = 2;
+  Other = 255;
+}
+
+message TestResult {
+  required string JobID = 1;
+  required string ApiKey = 2;
+  optional string OtherMsg = 254;
+  required TestCode Code = 255;
+}
+
+message JudgerResponse {
+  enum JudgerStatus {
+    Ok = 1;
+    InvalidName = 2;
+    InvalidAuth = 3;
+    Other = 255;
+  };
+}
+
+service Judger { rpc PostTestResult(TestResult) returns (JudgerResponse); }

@@ -11,11 +11,11 @@ use tonic::transport::{
     Server,
 };
 
-use crate::{cli::CLI, service::FileService};
+use crate::{cli::CLI, service::ControlService};
 use dualoj_judge::proto::controller_server::ControllerServer;
 
 pub struct Executor {
-    router: Router<ControllerServer<FileService>, Unimplemented>,
+    router: Router<ControllerServer<ControlService>, Unimplemented>,
     addr: SocketAddr,
 }
 
@@ -40,7 +40,7 @@ impl TryFrom<CLI> for Executor {
     type Error = tonic::transport::Error;
 
     fn try_from(value: CLI) -> Result<Self, Self::Error> {
-        let server = ControllerServer::new(FileService {
+        let server = ControllerServer::new(ControlService {
             archive_size_limit: value.archive_size_limit,
             buildkit: value.buildkit,
             registry: value.registry,

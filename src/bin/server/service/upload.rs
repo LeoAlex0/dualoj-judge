@@ -1,4 +1,4 @@
-use crate::service::FileService;
+use crate::service::ControlService;
 
 use std::env::temp_dir;
 
@@ -9,7 +9,7 @@ use dualoj_judge::proto::{upload_status, Chunk, UploadStatus, Uuid};
 use tar::Archive;
 use tonic::{Request, Response, Status, Streaming};
 
-impl FileService {
+impl ControlService {
     pub async fn upload_archive(
         &self,
         request: Request<Streaming<Chunk>>,

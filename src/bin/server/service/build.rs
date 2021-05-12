@@ -5,14 +5,14 @@ use tokio::process::Command;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 use tonic::{Code, Request, Response, Status};
 
-use crate::service::FileService;
+use crate::service::ControlService;
 use dualoj_judge::proto::{build_msg::MsgOrReturn, controller_server::Controller, BuildMsg, Uuid};
 
-impl FileService {
+impl ControlService {
     pub(crate) async fn build(
         &self,
         request: Request<Uuid>,
-    ) -> Result<Response<<FileService as Controller>::BuildStream>, Status> {
+    ) -> Result<Response<<ControlService as Controller>::BuildStream>, Status> {
         // Get UUID from request.
         let uuid = uuid::Uuid::from_slice(&request.into_inner().data)
             .map_err(|e| Status::new(Code::Unavailable, format!("UUID is unavaliable: {}", e)))?;
@@ -31,10 +31,8 @@ impl FileService {
                 format!("--local=context={}", context_dir.display()).as_str(),
                 format!("--local=dockerfile={}", context_dir.display()).as_str(),
                 format!(
-                    "--output=type=image,name={}/{}/{},registry.insecure=true,push=true",
-                    self.registry.registry_url,
-                    self.registry.username,
-                    uuid.to_string()
+                    "--output=type=image,name={},registry.insecure=true,push=true",
+                    self.get_image_url(&uuid)
                 )
                 .as_str(),
             ])

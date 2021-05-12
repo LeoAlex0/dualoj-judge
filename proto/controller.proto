@@ -32,14 +32,51 @@ message BuildMsg {
 message NewJobResponse {
   oneof Result {
     string ErrorMsg = 1;
-    UUID job_uid = 2;
+    UUID JobUID = 2;
   }
   required StatusCode Code = 255;
 }
 
+message JudgeLimit {
+  // CPU limit (in mili-cpu)
+  required uint32 CPU = 1;
+  // Memory Limit (in MiB)
+  required uint32 Memory = 2;
+  // TimeLimit (in second)
+  required uint32 Time = 3;
+}
+
+message JudgeRequest {
+  required UUID Judged = 1;
+  required UUID Judger = 2;
+  required JudgeLimit Limit = 3;
+}
+
+message JobCreatedMsg { required UUID JobUID = 1; }
+message JobExitMsg {
+  enum Code {
+    Accepted = 1;
+    WrongAnswer = 2;
+    TimeLimitExeeded = 3;
+    RuntimeError = 4;
+    Abort = 128;
+    Other = 255;
+  }
+  optional string OtherMsg = 1;
+}
+
+message JudgeEvent {
+  oneof Event {
+    JobCreatedMsg Created = 1;
+    JobExitMsg Exit = 255;
+  }
+}
+
 service Controller {
-  rpc UploadArchive(stream Chunk) returns (UploadStatus) {}
-  rpc Echo(EchoMsg) returns (EchoMsg) {}
-  rpc Build(UUID) returns (stream BuildMsg) {}
-  rpc NewJob(UUID) returns (NewJobResponse) {}
+  rpc UploadArchive(stream Chunk) returns (UploadStatus);
+  rpc Echo(EchoMsg) returns (EchoMsg);
+  rpc Build(UUID) returns (stream BuildMsg);
+  // Just For Test Internal Registry & K8s
+  rpc NewJob(UUID) returns (NewJobResponse);
+  rpc Judge(JudgeRequest) returns (stream JudgeEvent);
 }

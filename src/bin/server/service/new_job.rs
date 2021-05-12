@@ -9,14 +9,14 @@ use k8s_openapi::{
     apimachinery::pkg::{api::resource::Quantity, apis::meta::v1::OwnerReference},
 };
 use kube::{
-    api::{AttachParams, ListParams, ObjectMeta, PostParams},
+    api::{ListParams, ObjectMeta, PostParams},
     Api,
 };
 use tonic::{Request, Response, Status};
 
-use super::FileService;
+use super::ControlService;
 
-impl FileService {
+impl ControlService {
     pub async fn new_job(
         &self,
         request: Request<Uuid>,

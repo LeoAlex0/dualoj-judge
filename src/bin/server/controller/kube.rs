@@ -30,7 +30,6 @@ pub(crate) struct JudgeLimit {
 }
 
 impl ControlService {
-
     pub(crate) async fn new_judge_job(
         &self,
         limit: JudgeLimit,
@@ -90,7 +89,7 @@ impl ControlService {
                         containers: vec![
                             Container {
                                 name: JUDGED_CONTAINER_NAME.into(),
-                                image: Some(self.get_image_url(&judged)),
+                                image: Some(self.registry.get_image_url(&judged.to_string())),
                                 image_pull_policy: Some("Always".into()),
                                 resources: Some(ResourceRequirements {
                                     limits: Some(limits.clone()),
@@ -101,7 +100,7 @@ impl ControlService {
                             },
                             Container {
                                 name: JUDGER_CONTAINER_NAME.into(),
-                                image: Some(self.get_image_url(&judger)),
+                                image: Some(self.registry.get_image_url(&judger.to_string())),
                                 image_pull_policy: Some("Always".into()),
                                 resources: Some(ResourceRequirements {
                                     limits: Some(limits),

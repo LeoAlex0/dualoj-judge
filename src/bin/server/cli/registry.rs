@@ -10,3 +10,9 @@ pub(crate) struct Param {
     #[structopt(long, default_value = "build")]
     pub username: String,
 }
+
+impl Param {
+    pub(crate) fn get_image_url(&self, name: &String) -> String {
+        format!("{}/{}/{}", self.registry_url, self.username, name)
+    }
+}

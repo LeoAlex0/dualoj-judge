@@ -32,7 +32,7 @@ impl ControlService {
                 format!("--local=dockerfile={}", context_dir.display()).as_str(),
                 format!(
                     "--output=type=image,name={},registry.insecure=true,push=true",
-                    self.get_image_url(&uuid)
+                    self.registry.get_image_url(&uuid.to_string())
                 )
                 .as_str(),
             ])

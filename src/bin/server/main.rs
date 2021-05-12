@@ -1,6 +1,7 @@
 mod cli;
-mod exe;
 mod controller;
+mod exe;
+mod judge_server;
 
 use std::convert::TryFrom;
 

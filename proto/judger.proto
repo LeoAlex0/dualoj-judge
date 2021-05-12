@@ -21,7 +21,8 @@ message JudgerResponse {
     InvalidName = 2;
     InvalidAuth = 3;
     Other = 255;
-  };
+  }
+  required JudgerStatus Status = 1;
 }
 
 service Judger { rpc PostTestResult(TestResult) returns (JudgerResponse); }

@@ -5,7 +5,7 @@ use tokio::process::Command;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 use tonic::{Code, Request, Response, Status};
 
-use crate::service::ControlService;
+use crate::controller::ControlService;
 use dualoj_judge::proto::{build_msg::MsgOrReturn, controller_server::Controller, BuildMsg, Uuid};
 
 impl ControlService {

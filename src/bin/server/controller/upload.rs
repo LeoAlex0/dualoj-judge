@@ -1,4 +1,4 @@
-use crate::service::ControlService;
+use crate::controller::ControlService;
 
 use std::env::temp_dir;
 

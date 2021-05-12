@@ -1,6 +1,6 @@
 mod cli;
 mod exe;
-mod service;
+mod controller;
 
 use std::convert::TryFrom;
 

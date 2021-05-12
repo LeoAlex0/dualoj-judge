@@ -11,7 +11,7 @@ use tonic::transport::{
     Server,
 };
 
-use crate::{cli::CLI, service::ControlService};
+use crate::{cli::CLI, controller::ControlService};
 use dualoj_judge::proto::controller_server::ControllerServer;
 
 pub struct Executor {

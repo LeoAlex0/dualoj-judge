@@ -1,5 +1,3 @@
-use std::net::SocketAddr;
-
 use structopt::StructOpt;
 pub mod buildkit;
 pub mod pod_env;
@@ -15,9 +13,13 @@ pub(crate) struct CLI {
     #[structopt(long, env = "ca.pem")]
     pub ca_cert: Option<String>,
 
-    /// Network address for judger to listen
-    #[structopt(long, env = "ADDR", default_value = "0.0.0.0:50051")]
-    pub addr: SocketAddr,
+    /// Port for judger controller to listen
+    #[structopt(long, env = "CONTROLLER_PORT", default_value = "50051")]
+    pub controller_port: u16,
+
+    /// Port for judger server to listen
+    #[structopt(long, env = "JUDGER_PORT", default_value = "80")]
+    pub judger_port: u16,
 
     #[structopt(flatten)]
     pub buildkit: buildkit::Param,

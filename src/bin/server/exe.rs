@@ -1,29 +1,43 @@
-use std::{convert::TryFrom, net::SocketAddr};
+use std::{
+    convert::TryFrom,
+    net::{Ipv4Addr, SocketAddr},
+};
 
+use futures::{channel::mpsc, executor::block_on};
 use log::info;
 use tokio::{
     select,
     signal::{ctrl_c, unix::SignalKind},
     spawn,
 };
-use tonic::transport::{
-    server::{Router, Unimplemented},
-    Server,
+use tonic::transport::Server;
+
+use crate::{cli::CLI, controller::ControlService, judge_server::JudgeServer};
+use dualoj_judge::proto::{
+    controller_server::ControllerServer, judger::judger_server::JudgerServer,
 };
 
-use crate::{cli::CLI, controller::ControlService};
-use dualoj_judge::proto::controller_server::ControllerServer;
-
 pub struct Executor {
-    router: Router<ControllerServer<ControlService>, Unimplemented>,
-    addr: SocketAddr,
+    controller: ControllerServer<ControlService>,
+    judger: JudgerServer<JudgeServer>,
+    controller_addr: SocketAddr,
+    judger_addr: SocketAddr,
 }
 
 impl Executor {
     pub async fn serve(self) -> Result<(), Box<dyn std::error::Error>> {
-        info!("Server listen on {}", self.addr);
+        info!("Server listen on {}", self.controller_addr);
 
-        let rpc_thread = spawn(async move { self.router.serve(self.addr).await });
+        let controller_thread = spawn(
+            Server::builder()
+                .add_service(self.controller)
+                .serve(self.controller_addr),
+        );
+        let judger_thread = spawn(
+            Server::builder()
+                .add_service(self.judger)
+                .serve(self.judger_addr),
+        );
         let mut term = tokio::signal::unix::signal(SignalKind::terminate())?;
 
         select! {
@@ -31,25 +45,35 @@ impl Executor {
             _ = term.recv() => {}
         }
 
-        rpc_thread.abort();
+        controller_thread.abort();
+        judger_thread.abort();
         Ok(())
     }
 }
 
 impl TryFrom<CLI> for Executor {
-    type Error = tonic::transport::Error;
+    type Error = Box<dyn std::error::Error>;
 
     fn try_from(value: CLI) -> Result<Self, Self::Error> {
-        let server = ControllerServer::new(ControlService {
+        let (tx, rx) = mpsc::channel(5); // TODO!: tuning this buffer size
+        let client = block_on(kube::Client::try_default())?;
+        let controller = ControllerServer::new(ControlService {
             archive_size_limit: value.archive_size_limit,
             buildkit: value.buildkit,
             registry: value.registry,
             pod_env: value.pod_env,
+            job_poster: tx,
+            k8s_client: client,
         });
+        let judger = JudgerServer::new(JudgeServer::new(rx));
+
+        let all_addr = std::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 
         Ok(Executor {
-            router: Server::builder().add_service(server),
-            addr: value.addr,
+            controller,
+            judger,
+            controller_addr: SocketAddr::new(all_addr, value.controller_port),
+            judger_addr: SocketAddr::new(all_addr, value.judger_port),
         })
     }
 }

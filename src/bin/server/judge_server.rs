@@ -4,7 +4,7 @@ use dualoj_judge::proto::judger::{
     judger_response::JudgerStatus, judger_server::Judger, JudgerResponse, TestResult,
 };
 use futures::{channel::mpsc, FutureExt, StreamExt};
-use tokio::sync::{oneshot, Mutex, RwLock};
+use tokio::sync::{oneshot, Mutex};
 use tonic::{Request, Response, Status};
 
 pub(crate) struct JudgeMsg {

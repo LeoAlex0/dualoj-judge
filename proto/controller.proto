@@ -64,11 +64,13 @@ message JobExitMsg {
   }
   optional string OtherMsg = 1;
 }
+message JobErrorMsg { required string Msg = 1; }
 
 message JudgeEvent {
   oneof Event {
     JobCreatedMsg Created = 1;
-    JobExitMsg Exit = 255;
+    JobExitMsg Exit = 254;
+    JobErrorMsg Error = 255;
   }
 }
 

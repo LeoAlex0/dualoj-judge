@@ -33,6 +33,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.uid
+            - name: CONTROLLER_PORT
+              value: "50051"
+            - name: JUDGER_PORT
+              value: "80"
           envFrom:
             - configMapRef:
                 name: registry-config
@@ -50,7 +54,9 @@ spec:
                 - "[ $(echo 'helloworld' | client --addr 'grpc://localhost:50051' echo) = 'helloworld' ]"
           ports:
             - containerPort: 50051
-              name: grpc
+              name: controller
+            - containerPort: 80
+              name: judge-server
           volumeMounts:
             - name: certs
               readOnly: true
@@ -63,7 +69,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: judger
+  name: judger-controller
   namespace: dualoj
 spec:
   selector:
@@ -71,7 +77,7 @@ spec:
   ports:
     - port: 50051
       name: grpc
-      targetPort: grpc
+      targetPort: controller
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -93,7 +99,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: judger
+                name: judger-controller
                 port:
                   name: grpc
     - host: "workstation"
@@ -103,7 +109,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: judger
+                name: judger-controller
                 port:
                   name: grpc
   tls:

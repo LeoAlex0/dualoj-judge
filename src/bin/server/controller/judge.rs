@@ -1,59 +1,71 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, future::ready, str::FromStr};
 
+use dualoj_judge::proto::{
+    self, controller_server::Controller, judge_event::Event, JobCreatedMsg, JobErrorMsg,
+    JudgeEvent, JudgeLimit,
+};
+use futures::{
+    channel::mpsc::{self, Sender},
+    SinkExt, StreamExt,
+};
 use k8s_openapi::{
     api::{
         batch::v1::{Job, JobSpec},
         core::v1::{Container, Pod, PodSpec, PodTemplateSpec, ResourceRequirements},
     },
     apimachinery::pkg::{api::resource::Quantity, apis::meta::v1::OwnerReference},
+    Metadata,
 };
 use kube::{
-    api::{AttachParams, ListParams, Meta, ObjectMeta, PostParams},
+    api::{AttachParams, ListParams, Meta, ObjectMeta, PostParams, WatchEvent},
     Api,
 };
 use log::warn;
 use tokio::{io::copy, spawn, try_join};
-use uuid::Uuid;
+use tonic::{Response, Status};
 
 use super::ControlService;
 
 const JUDGED_CONTAINER_NAME: &str = "judged";
 const JUDGER_CONTAINER_NAME: &str = "judger";
 
-pub(crate) struct JudgeLimit {
-    // CPU Limit, (in mili-cpu)
-    pub cpu: u64,
-    // Memory Limit, (in MiB)
-    pub memory: u64,
-    // Time Limit, (in seconds)
-    pub time: i64,
-}
-
 impl ControlService {
     pub(crate) async fn new_judge_job(
         &self,
         limit: JudgeLimit,
-        judged: Uuid,
-        judger: Uuid,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+        judged: uuid::Uuid,
+        judger: uuid::Uuid,
+    ) -> Result<Response<<ControlService as Controller>::JudgeStream>, Status> {
         let job = self.judge_job(limit, judged, judger);
+        let (mut tx, rx) = mpsc::channel(20);
 
-        let client = kube::client::Client::try_default().await?;
-        let jobs: Api<Job> = Api::namespaced(client.clone(), self.pod_env.namespace.as_str());
-        let pods: Api<Pod> = Api::namespaced(client, self.pod_env.namespace.as_str());
+        let jobs: Api<Job> =
+            Api::namespaced(self.k8s_client.clone(), self.pod_env.namespace.as_str());
+        let pods: Api<Pod> =
+            Api::namespaced(self.k8s_client.clone(), self.pod_env.namespace.as_str());
 
-        let job = jobs.create(&PostParams::default(), &job).await?;
+        tokio::spawn(fail_watcher(jobs.clone(), judger.to_string(), tx.clone()));
+        match jobs.create(&PostParams::default(), &job).await {
+            Ok(_) => {
+                tokio::spawn(io_binder(pods, judger.to_string()));
+            }
+            Err(e) => {
+                let _ = tx
+                    .send(Ok(JudgeEvent {
+                        event: Some(Event::Error(JobErrorMsg { msg: e.to_string() })),
+                    }))
+                    .await;
+            }
+        }
 
-        tokio::spawn(io_binder(pods, judger.to_string()));
-
-        Ok(())
+        Ok(Response::new(rx))
     }
 
     fn judge_job(
         &self,
         JudgeLimit { cpu, memory, time }: JudgeLimit,
-        judged: Uuid,
-        judger: Uuid,
+        judged: uuid::Uuid,
+        judger: uuid::Uuid,
     ) -> Job {
         let mut limits = BTreeMap::new();
         limits.insert("cpu".into(), Quantity(format!("{}m", cpu)));
@@ -82,10 +94,11 @@ impl ControlService {
             },
             spec: Some(JobSpec {
                 backoff_limit: Some(0),
+                ttl_seconds_after_finished: Some(5), // TODO!: custom TTL for debugging
                 template: PodTemplateSpec {
                     metadata: None,
                     spec: Some(PodSpec {
-                        active_deadline_seconds: Some(time),
+                        active_deadline_seconds: Some(time.into()),
                         containers: vec![
                             Container {
                                 name: JUDGED_CONTAINER_NAME.into(),
@@ -174,5 +187,45 @@ async fn io_binder(pods: Api<Pod>, job_name: String) {
                 let _ = copy(&mut judger_out, &mut judged_in).await;
             });
         }
+    }
+}
+
+async fn fail_watcher(
+    jobs: Api<Job>,
+    name: String,
+    event_sender: Sender<Result<JudgeEvent, tonic::Status>>,
+) {
+    if let Ok(event_stream) = jobs
+        .watch(
+            &ListParams::default().fields(format!("metadata.name={}", name).as_str()),
+            "0",
+        )
+        .await
+    {
+        let res = event_stream
+            .take_while(|x| ready(x.is_ok()))
+            .filter_map(|x| ready(x.ok()))
+            .map(|x| async move {
+                match x {
+                    WatchEvent::Added(job) => job
+                        .metadata()
+                        .uid
+                        .as_ref()
+                        .map(|s| uuid::Uuid::from_str(s).ok())
+                        .flatten()
+                        .map(|uid| {
+                            Event::Created(JobCreatedMsg {
+                                job_uid: proto::Uuid {
+                                    data: uid.as_bytes().to_vec(),
+                                },
+                            })
+                        }),
+                    WatchEvent::Modified(_) => None,
+                    WatchEvent::Deleted(_) => None,
+                    WatchEvent::Bookmark(_) => None,
+                    WatchEvent::Error(e) => None,
+                }
+            });
+        todo!()
     }
 }

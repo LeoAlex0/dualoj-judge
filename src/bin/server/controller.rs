@@ -1,24 +1,29 @@
 mod build;
-mod kube;
+mod judge;
 mod new_job;
 mod upload;
 
 use futures::channel::mpsc;
 use log::info;
 
-use dualoj_judge::proto::{
-    controller_server::Controller, BuildMsg, Chunk, EchoMsg, JudgeEvent, UploadStatus, Uuid,
+use dualoj_judge::{
+    proto::{
+        controller_server::Controller, BuildMsg, Chunk, EchoMsg, JudgeEvent, UploadStatus, Uuid,
+    },
+    to_internal,
 };
 
 use tonic::{Request, Response, Status};
 
-use crate::cli;
+use crate::{cli, judge_server::JudgeMsg};
 
 pub(crate) struct ControlService {
     pub archive_size_limit: usize,
     pub registry: cli::registry::Param,
     pub buildkit: cli::buildkit::Param,
     pub pod_env: cli::pod_env::Param,
+    pub job_poster: mpsc::Sender<JudgeMsg>,
+    pub k8s_client: kube::Client,
 }
 
 #[tonic::async_trait]
@@ -54,6 +59,9 @@ impl Controller for ControlService {
         &self,
         request: Request<dualoj_judge::proto::JudgeRequest>,
     ) -> Result<Response<Self::JudgeStream>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let judged = uuid::Uuid::from_slice(&req.judged.data.to_vec()).map_err(to_internal)?;
+        let judger = uuid::Uuid::from_slice(&req.judger.data.to_vec()).map_err(to_internal)?;
+        self.new_judge_job(req.limit, judged, judger).await
     }
 }

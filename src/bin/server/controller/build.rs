@@ -1,4 +1,4 @@
-use std::{env::temp_dir, process::Stdio};
+use std::{env::temp_dir, future::ready, process::Stdio};
 
 use futures::{channel::mpsc, io::BufReader, AsyncBufReadExt, SinkExt, StreamExt, TryStreamExt};
 use tokio::process::Command;
@@ -67,30 +67,30 @@ impl ControlService {
         let tx1 = tx.clone();
         let tx2 = tx.clone();
 
-        tokio::spawn(async move {
+        tokio::spawn(
             stdout_lines
-                .filter_map(|it| async { it.ok() })
-                .map(|it| Ok(it))
-                .forward(tx1)
-                .await
-        });
+                .take_while(|it| ready(it.is_ok()))
+                .filter_map(|it| ready(it.ok()))
+                .map(Ok)
+                .forward(tx1),
+        );
 
-        tokio::spawn(async move {
+        tokio::spawn(
             stderr_lines
-                .filter_map(|it| async { it.ok() })
-                .map(|it| Ok(it))
-                .forward(tx2)
-                .await
-        });
+                .take_while(|it| ready(it.is_ok()))
+                .filter_map(|it| ready(it.ok()))
+                .map(Ok)
+                .forward(tx2),
+        );
 
         tokio::spawn(async move {
             if let Ok(code) = child.wait().await {
                 if let Some(code) = code.code() {
-                    tx.send(Ok(BuildMsg {
-                        msg_or_return: Some(MsgOrReturn::Code(code)),
-                    }))
-                    .await
-                    .unwrap_or_default();
+                    let _ = tx
+                        .send(Ok(BuildMsg {
+                            msg_or_return: Some(MsgOrReturn::Code(code)),
+                        }))
+                        .await;
                 }
             }
         });

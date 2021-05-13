@@ -61,7 +61,8 @@ message JobExitMsg {
     RuntimeError = 4;
     Abort = 128;
     Other = 255;
-  }
+  };
+  required Code JudgeCode = 255;
   optional string OtherMsg = 1;
 }
 message JobErrorMsg { required string Msg = 1; }

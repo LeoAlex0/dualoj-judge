@@ -1,9 +1,7 @@
-use std::{
-    convert::TryFrom,
-    net::{Ipv4Addr, SocketAddr},
-};
+use std::{convert::TryFrom, net::SocketAddr};
 
 use futures::{channel::mpsc, executor::block_on};
+use kube::Api;
 use log::info;
 use tokio::{
     select,
@@ -57,23 +55,31 @@ impl TryFrom<CLI> for Executor {
     fn try_from(value: CLI) -> Result<Self, Self::Error> {
         let (tx, rx) = mpsc::channel(5); // TODO!: tuning this buffer size
         let client = block_on(kube::Client::try_default())?;
+        let judger_addr = SocketAddr::new(value.pod_env.ip, value.judger_port);
+        let controller_addr = SocketAddr::new(value.pod_env.ip, value.controller_port);
+
+        // TODO!: customized target namespace.
+        let job_api = Api::namespaced(client.clone(), &value.pod_env.namespace);
+        let pod_api = Api::namespaced(client.clone(), &value.pod_env.namespace);
+
         let controller = ControllerServer::new(ControlService {
             archive_size_limit: value.archive_size_limit,
             buildkit: value.buildkit,
             registry: value.registry,
             pod_env: value.pod_env,
             job_poster: tx,
-            k8s_client: client,
+            judger_addr,
+
+            job_api,
+            pod_api,
         });
         let judger = JudgerServer::new(JudgeServer::new(rx));
-
-        let all_addr = std::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 
         Ok(Executor {
             controller,
             judger,
-            controller_addr: SocketAddr::new(all_addr, value.controller_port),
-            judger_addr: SocketAddr::new(all_addr, value.judger_port),
+            controller_addr,
+            judger_addr,
         })
     }
 }

@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use futures::{stream::iter, StreamExt};
 use glob::Pattern;
 use log::{debug, info};
@@ -28,21 +30,26 @@ impl Client {
 
         let data = {
             let mut tar = tar::Builder::new(Vec::new());
-            // tar.append_dir_all(".", &path)?;
 
-            let mut stack = vec![path];
-            while let Some(path) = stack.pop() {
-                if !blacklist.iter().any(|x| x.matches_path(&path)) {
-                    tar.append_path(&path)?;
+            let mut inner_root = PathBuf::new();
+            inner_root.push(".");
+            let mut stack = vec![(path, inner_root)];
+            while let Some((ext, inner)) = stack.pop() {
+                if !blacklist.iter().any(|x| x.matches_path(&ext)) {
+                    debug!("add {} into {}", ext.display(), inner.display());
+                    tar.append_path_with_name(&ext, &inner)?;
 
-                    if path.is_dir() {
-                        for entry in std::fs::read_dir(path)? {
+                    if ext.is_dir() {
+                        for entry in std::fs::read_dir(ext)? {
                             let entry = entry?;
-                            stack.push(entry.path());
+                            let mut new_inner = inner.clone();
+
+                            new_inner.push(entry.file_name());
+                            stack.push((entry.path(), new_inner));
                         }
                     }
                 } else {
-                    debug!("file/directory {} is excluded", path.display());
+                    debug!("file/directory {} is excluded", ext.display());
                 }
             }
 
@@ -68,27 +75,21 @@ impl Client {
             .await;
 
         match response {
-            Ok(response) => {
-                if !brief {
-                    println!(
-                        "Response {}: {:#?}",
-                        response.get_ref().code,
-                        response.get_ref().result,
-                    );
-                } else {
-                    match &response.get_ref().result {
-                        Some(e) => match e {
-                            upload_status::Result::ErrorMsg(msg) => {
-                                eprintln!("{}", msg)
-                            }
-                            upload_status::Result::FolderId(id) => {
-                                println!("{}", Uuid::from_slice(&id.data)?)
-                            }
-                        },
-                        None => {}
+            Ok(response) => match &response.get_ref().result {
+                Some(e) => match e {
+                    upload_status::Result::ErrorMsg(msg) => {
+                        eprintln!("{}", msg)
                     }
-                }
-            }
+                    upload_status::Result::FolderId(id) => {
+                        if brief {
+                            println!("{}", Uuid::from_slice(&id.data)?)
+                        } else {
+                            println!("upload OK, Folder ID: {}", Uuid::from_slice(&id.data)?)
+                        }
+                    }
+                },
+                None => {}
+            },
             Err(e) => eprintln!("Server-side error received: {}", e),
         }
 

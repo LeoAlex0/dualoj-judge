@@ -1,3 +1,5 @@
+use std::net::IpAddr;
+
 use structopt::StructOpt;
 #[derive(StructOpt)]
 pub(crate) struct Param {
@@ -7,4 +9,6 @@ pub(crate) struct Param {
     pub uid: String,
     #[structopt(env = "POD_NAME", default_value = "")]
     pub name: String,
+    #[structopt(env = "POD_IP", default_value = "0.0.0.0")]
+    pub ip: IpAddr,
 }

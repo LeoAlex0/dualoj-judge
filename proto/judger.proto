@@ -9,10 +9,14 @@ enum TestCode {
 }
 
 message TestResult {
-  required string JobID = 1;
-  required string ApiKey = 2;
   optional string OtherMsg = 254;
   required TestCode Code = 255;
+}
+
+message JudgerRequest {
+  required string JobID = 1;
+  required string ApiKey = 2;
+  required TestResult Result = 255;
 }
 
 message JudgerResponse {
@@ -25,4 +29,4 @@ message JudgerResponse {
   required JudgerStatus Status = 1;
 }
 
-service Judger { rpc PostTestResult(TestResult) returns (JudgerResponse); }
+service Judger { rpc PostTestResult(JudgerRequest) returns (JudgerResponse); }

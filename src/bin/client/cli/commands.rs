@@ -15,6 +15,9 @@ pub(crate) enum SubCommand {
 
     /// New a temporary Job to test the builded image
     NewJob(NewJobParam),
+
+    /// New a Judge job to test if solver is right.
+    Judge(JudgeParam),
 }
 
 #[derive(StructOpt)]
@@ -40,4 +43,25 @@ pub(crate) struct BuildParam {
 pub(crate) struct NewJobParam {
     /// UUID of uploaded directory
     pub uuid: uuid::Uuid,
+}
+
+#[derive(StructOpt)]
+pub(crate) struct JudgeParam {
+    /// UUID of judger
+    pub judger: uuid::Uuid,
+
+    /// UUID of judged
+    pub judged: uuid::Uuid,
+
+    /// CPU Limit (in mili-cpu)
+    #[structopt(long, default_value = "2000")]
+    pub cpu_limit: u32,
+
+    /// Memory Limit (in MiB)
+    #[structopt(long, default_value = "64")]
+    pub mem_limit: u32,
+
+    /// Time Limit (in Second)
+    #[structopt(long, default_value = "5")]
+    pub time_limit: u32,
 }

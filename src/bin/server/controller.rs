@@ -3,7 +3,11 @@ mod judge;
 mod new_job;
 mod upload;
 
+use std::net::SocketAddr;
+
 use futures::channel::mpsc;
+use k8s_openapi::api::{batch::v1::Job, core::v1::Pod};
+use kube::Api;
 use log::info;
 
 use dualoj_judge::{
@@ -22,8 +26,11 @@ pub(crate) struct ControlService {
     pub registry: cli::registry::Param,
     pub buildkit: cli::buildkit::Param,
     pub pod_env: cli::pod_env::Param,
+    pub judger_addr: SocketAddr,
     pub job_poster: mpsc::Sender<JudgeMsg>,
-    pub k8s_client: kube::Client,
+
+    pub job_api: Api<Job>,
+    pub pod_api: Api<Pod>,
 }
 
 #[tonic::async_trait]

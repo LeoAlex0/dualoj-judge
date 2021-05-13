@@ -33,6 +33,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.uid
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: CONTROLLER_PORT
               value: "50051"
             - name: JUDGER_PORT
@@ -51,7 +55,7 @@ spec:
               command:
                 - "sh"
                 - "-c"
-                - "[ $(echo 'helloworld' | client --addr 'grpc://localhost:50051' echo) = 'helloworld' ]"
+                - "[ $(echo 'helloworld' | client --addr grpc://${POD_IP}:50051 echo) = 'helloworld' ]"
           ports:
             - containerPort: 50051
               name: controller
@@ -65,6 +69,18 @@ spec:
         - name: certs
           secret:
             secretName: judger-certs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: judger-judge
+  namespace: dualoj
+spec:
+  selector:
+    app: judger
+  ports:
+    - port: 80
+      targetPort: judge-server
 ---
 apiVersion: v1
 kind: Service

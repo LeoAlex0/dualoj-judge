@@ -1,32 +1,33 @@
-use std::{collections::BTreeMap, future::ready, str::FromStr};
+mod fail;
+mod io;
+
+use std::{collections::BTreeMap, time::Duration};
 
 use dualoj_judge::proto::{
-    self, controller_server::Controller, judge_event::Event, JobCreatedMsg, JobErrorMsg,
-    JudgeEvent, JudgeLimit,
+    controller_server::Controller, judge_event::Event, JobErrorMsg, JobExitMsg, JudgeEvent,
+    JudgeLimit,
 };
 use futures::{
     channel::mpsc::{self, Sender},
-    SinkExt, StreamExt,
+    SinkExt,
 };
 use k8s_openapi::{
     api::{
         batch::v1::{Job, JobSpec},
-        core::v1::{Container, Pod, PodSpec, PodTemplateSpec, ResourceRequirements},
+        core::v1::{Container, EnvVar, PodSpec, PodTemplateSpec, ResourceRequirements},
     },
     apimachinery::pkg::{api::resource::Quantity, apis::meta::v1::OwnerReference},
-    Metadata,
 };
-use kube::{
-    api::{AttachParams, ListParams, Meta, ObjectMeta, PostParams, WatchEvent},
-    Api,
-};
+use kube::api::{Meta, ObjectMeta, PostParams};
 use log::warn;
-use tokio::{io::copy, spawn, try_join};
+use tokio::{sync::oneshot, time::timeout};
 use tonic::{Response, Status};
+
+use crate::judge_server::JudgeMsg;
 
 use super::ControlService;
 
-const JUDGED_CONTAINER_NAME: &str = "judged";
+const SOLVER_CONTAINER_NAME: &str = "judged";
 const JUDGER_CONTAINER_NAME: &str = "judger";
 
 impl ControlService {
@@ -36,18 +37,27 @@ impl ControlService {
         judged: uuid::Uuid,
         judger: uuid::Uuid,
     ) -> Result<Response<<ControlService as Controller>::JudgeStream>, Status> {
-        let job = self.judge_job(limit, judged, judger);
+        let inject_apikey = uuid::Uuid::new_v4();
+        let ttl = Duration::from_secs(limit.time.into());
+        let job = self.judge_job(limit, &inject_apikey, judged, judger);
+        let job_name = job.name();
         let (mut tx, rx) = mpsc::channel(20);
 
-        let jobs: Api<Job> =
-            Api::namespaced(self.k8s_client.clone(), self.pod_env.namespace.as_str());
-        let pods: Api<Pod> =
-            Api::namespaced(self.k8s_client.clone(), self.pod_env.namespace.as_str());
-
-        tokio::spawn(fail_watcher(jobs.clone(), judger.to_string(), tx.clone()));
-        match jobs.create(&PostParams::default(), &job).await {
+        // fail watcher & judge result watcher
+        tokio::spawn(tokio::time::timeout(
+            ttl,
+            fail::fail_watcher(self.job_api.clone(), job_name.clone(), tx.clone()),
+        ));
+        tokio::spawn(register_judger_callback(
+            judged.to_string(),
+            inject_apikey.to_string(),
+            ttl,
+            self.job_poster.clone(),
+            tx.clone(),
+        ));
+        match self.job_api.create(&PostParams::default(), &job).await {
             Ok(_) => {
-                tokio::spawn(io_binder(pods, judger.to_string()));
+                tokio::spawn(io::io_binder(self.pod_api.clone(), job_name));
             }
             Err(e) => {
                 let _ = tx
@@ -61,9 +71,11 @@ impl ControlService {
         Ok(Response::new(rx))
     }
 
+    // TODO!: split away from ControllerService
     fn judge_job(
         &self,
         JudgeLimit { cpu, memory, time }: JudgeLimit,
+        apikey: &uuid::Uuid,
         judged: uuid::Uuid,
         judger: uuid::Uuid,
     ) -> Job {
@@ -94,20 +106,21 @@ impl ControlService {
             },
             spec: Some(JobSpec {
                 backoff_limit: Some(0),
-                ttl_seconds_after_finished: Some(5), // TODO!: custom TTL for debugging
+                // ttl_seconds_after_finished: Some(5), // TODO!: custom TTL for debugging
                 template: PodTemplateSpec {
                     metadata: None,
                     spec: Some(PodSpec {
                         active_deadline_seconds: Some(time.into()),
                         containers: vec![
                             Container {
-                                name: JUDGED_CONTAINER_NAME.into(),
+                                name: SOLVER_CONTAINER_NAME.into(),
                                 image: Some(self.registry.get_image_url(&judged.to_string())),
                                 image_pull_policy: Some("Always".into()),
                                 resources: Some(ResourceRequirements {
                                     limits: Some(limits.clone()),
                                     requests: None,
                                 }),
+                                stdin: Some(true),
 
                                 ..Default::default()
                             },
@@ -119,6 +132,27 @@ impl ControlService {
                                     limits: Some(limits),
                                     requests: None,
                                 }),
+                                stdin: Some(true),
+
+                                // inject judge env
+                                env: Some(vec![
+                                    EnvVar {
+                                        name: "APIKEY".into(),
+                                        value: Some(apikey.to_string()),
+                                        value_from: None,
+                                    },
+                                    EnvVar {
+                                        name: "JOB_ID".into(),
+                                        value: Some(judged.to_string()),
+                                        value_from: None,
+                                    },
+                                    EnvVar {
+                                        name: "JUDGER_ADDR".into(),
+                                        // TODO!: use service & k8s network-policy instead of using ip directly.
+                                        value: Some(self.judger_addr.to_string()),
+                                        value_from: None,
+                                    },
+                                ]),
 
                                 ..Default::default()
                             },
@@ -137,95 +171,39 @@ impl ControlService {
     }
 }
 
-fn attach_param(container_name: &str) -> AttachParams {
-    AttachParams {
-        container: Some(container_name.into()),
-        stdin: true,
-        stdout: true,
-        tty: true,
-
-        ..Default::default()
-    }
-}
-
-async fn io_binder(pods: Api<Pod>, job_name: String) {
-    let pod_name = pods
-        .list(&ListParams {
-            label_selector: Some(format!("job-name={}", job_name)),
-            timeout: Some(1),
-            limit: Some(1),
-
-            ..Default::default()
-        })
-        .await
-        .unwrap();
-    if pod_name.items.len() == 1 {
-        warn!("Pod of Job:{} not found", job_name);
-        return;
-    }
-    let pod_name = pod_name.items[0].name();
-    let judged_ap = attach_param(JUDGED_CONTAINER_NAME);
-    let judger_ap = attach_param(JUDGER_CONTAINER_NAME);
-    let judged = pods.attach(pod_name.as_str(), &judged_ap);
-    let judger = pods.attach(pod_name.as_str(), &judger_ap);
-    if let Ok((mut _judged, mut _judger)) = try_join!(judged, judger) {
-        if let (
-            Some(mut judged_in),
-            Some(mut judged_out),
-            Some(mut judger_in),
-            Some(mut judger_out),
-        ) = (
-            _judged.stdin(),
-            _judged.stdout(),
-            _judger.stdin(),
-            _judger.stdout(),
-        ) {
-            spawn(async move {
-                let _ = copy(&mut judged_out, &mut judger_in).await;
-            });
-            spawn(async move {
-                let _ = copy(&mut judger_out, &mut judged_in).await;
-            });
-        }
-    }
-}
-
-async fn fail_watcher(
-    jobs: Api<Job>,
-    name: String,
-    event_sender: Sender<Result<JudgeEvent, tonic::Status>>,
+async fn register_judger_callback(
+    job_id: String,
+    api_key: String,
+    ttl: Duration,
+    mut job_poster: Sender<JudgeMsg>,
+    mut controller_sender: Sender<Result<JudgeEvent, tonic::Status>>,
 ) {
-    if let Ok(event_stream) = jobs
-        .watch(
-            &ListParams::default().fields(format!("metadata.name={}", name).as_str()),
-            "0",
-        )
-        .await
-    {
-        let res = event_stream
-            .take_while(|x| ready(x.is_ok()))
-            .filter_map(|x| ready(x.ok()))
-            .map(|x| async move {
-                match x {
-                    WatchEvent::Added(job) => job
-                        .metadata()
-                        .uid
-                        .as_ref()
-                        .map(|s| uuid::Uuid::from_str(s).ok())
-                        .flatten()
-                        .map(|uid| {
-                            Event::Created(JobCreatedMsg {
-                                job_uid: proto::Uuid {
-                                    data: uid.as_bytes().to_vec(),
-                                },
-                            })
-                        }),
-                    WatchEvent::Modified(_) => None,
-                    WatchEvent::Deleted(_) => None,
-                    WatchEvent::Bookmark(_) => None,
-                    WatchEvent::Error(e) => None,
-                }
-            });
-        todo!()
+    let (tx, rx) = oneshot::channel();
+    let log_name = job_id.clone();
+
+    tokio::spawn(async move {
+        job_poster
+            .send(JudgeMsg {
+                name: job_id,
+                api_key,
+                ttl,
+                signal_sender: tx,
+            })
+            .await
+    });
+
+    match timeout(ttl, rx).await {
+        Err(e) => warn!("{} Accepted signal timeout:{}", log_name, e),
+        Ok(Err(e)) => warn!("{} Cannot get Signal from judger: {}", log_name, e),
+        Ok(Ok(result)) => {
+            let _ = controller_sender
+                .send(Ok(JudgeEvent {
+                    event: Some(Event::Exit(JobExitMsg {
+                        judge_code: result.code,
+                        other_msg: result.other_msg,
+                    })),
+                }))
+                .await;
+        }
     }
 }

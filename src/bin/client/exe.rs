@@ -1,5 +1,6 @@
 mod build;
 mod echo;
+mod judge;
 mod new_job;
 mod upload;
 
@@ -26,6 +27,7 @@ impl Executor {
             Upload(param) => self.client.upload(param).await,
             Build(param) => self.client.build(param).await,
             NewJob(param) => self.client.new_job(param).await,
+            Judge(param) => self.client.judge(param).await,
         }
     }
 }

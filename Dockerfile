@@ -9,7 +9,6 @@ COPY Cargo.toml .
 COPY Cargo.lock .
 COPY build.rs ./build.rs
 COPY src/ ./src
-COPY vendor/ ./vendor
 COPY proto/ ./proto
 
 RUN \

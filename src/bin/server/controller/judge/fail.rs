@@ -11,53 +11,56 @@ use kube::{
 };
 use log::{debug, warn};
 
+use crate::controller::judge::error::ResultInspectErr;
+
+use super::error::JudgeError;
+
 pub(crate) async fn fail_watcher(
     jobs: Api<Job>,
     name: String,
     mut event_sender: Sender<Result<JudgeEvent, tonic::Status>>,
-) {
+) -> Result<(), JudgeError> {
     let field_selector = format!("metadata.name={}", name);
     debug!("{} fail watcher forked, watching: {}", name, field_selector);
-    match jobs
+    let event_stream = jobs
         .watch(&ListParams::default().fields(&field_selector), "0")
         .await
-    {
-        Err(e) => warn!("{} watch fail: {}", name, e),
-        Ok(event_stream) => {
-            let mut res = event_stream
-                .boxed()
-                .take_while(|x| ready(x.is_ok()))
-                .filter_map(|x| ready(x.ok()));
+        .inspect_err(|e| warn!("{} watch fail: {}", name, e))?;
 
-            debug!("{} fail-watcher get event stream OK", name);
-            while let Some(x) = res.next().await {
-                if let Some(event) = match x {
-                    WatchEvent::Added(job) => job
-                        .metadata
-                        .uid
-                        .as_ref()
-                        .map(|s| uuid::Uuid::from_str(s).ok())
-                        .flatten()
-                        .map(|uid| {
-                            Event::Created(JobCreatedMsg {
-                                job_uid: proto::Uuid {
-                                    data: uid.as_bytes().to_vec(),
-                                },
-                            })
-                        }),
-                    WatchEvent::Modified(_) => None,
-                    WatchEvent::Deleted(_) => None,
-                    WatchEvent::Bookmark(_) => None,
-                    WatchEvent::Error(e) => Some(Event::Exit(JobExitMsg {
-                        judge_code: Code::RuntimeError.into(),
-                        other_msg: Some(e.message),
-                    })),
-                } {
-                    let _ = event_sender
-                        .send(Ok(JudgeEvent { event: Some(event) }))
-                        .await;
-                }
-            }
+    let mut res = event_stream
+        .boxed()
+        .take_while(|x| ready(x.is_ok()))
+        .filter_map(|x| ready(x.ok()));
+
+    debug!("{} fail-watcher get event stream OK", name);
+
+    while let Some(x) = res.next().await {
+        if let Some(event) = match x {
+            WatchEvent::Added(job) => job
+                .metadata
+                .uid
+                .as_ref()
+                .map(|s| uuid::Uuid::from_str(s).ok())
+                .flatten()
+                .map(|uid| {
+                    Event::Created(JobCreatedMsg {
+                        job_uid: proto::Uuid {
+                            data: uid.as_bytes().to_vec(),
+                        },
+                    })
+                }),
+            WatchEvent::Modified(_) => None,
+            WatchEvent::Deleted(_) => None,
+            WatchEvent::Bookmark(_) => None,
+            WatchEvent::Error(e) => Some(Event::Exit(JobExitMsg {
+                judge_code: Code::RuntimeError.into(),
+                other_msg: Some(e.message),
+            })),
+        } {
+            let _ = event_sender
+                .send(Ok(JudgeEvent { event: Some(event) }))
+                .await;
         }
     }
+    Ok(())
 }

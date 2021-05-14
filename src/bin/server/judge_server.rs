@@ -5,7 +5,7 @@ use dualoj_judge::proto::judger::{
 };
 use futures::{channel::mpsc, FutureExt, StreamExt};
 use log::{info, warn};
-use tokio::sync::{oneshot, Mutex};
+use tokio::{sync::{oneshot, Mutex}, task};
 use tonic::{Request, Response, Status};
 
 pub(crate) struct JudgeMsg {
@@ -27,7 +27,7 @@ pub(crate) struct JudgeServer {
 impl JudgeServer {
     pub fn new(receive: mpsc::Receiver<JudgeMsg>) -> Self {
         let job_list = Arc::new(Mutex::new(HashMap::new()));
-        tokio::spawn(receive_daemon(job_list.clone(), receive));
+        task::spawn(receive_daemon(job_list.clone(), receive));
         JudgeServer { job_list }
     }
 }
@@ -54,7 +54,7 @@ async fn receive_daemon(
             info!("{} registered", name);
 
             // When TTL reached
-            tokio::spawn(tokio::time::sleep(ttl).then(|_| async move {
+            task::spawn(tokio::time::sleep(ttl).then(|_| async move {
                 warn!("{} TTL reached", name);
                 let mut cur_map = ttl_handler.lock().await;
                 cur_map.remove(&name);
@@ -74,7 +74,7 @@ impl Judger for JudgeServer {
         Ok(Response::new(
             if let Some((id, val)) = list.remove_entry(&req.job_id) {
                 if val.api_key == req.api_key {
-                    tokio::spawn(async move {
+                    task::spawn(async move {
                         let _ = val.signal_sender.send(req.result);
                     });
                     JudgerResponse {

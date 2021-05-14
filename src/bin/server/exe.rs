@@ -6,7 +6,7 @@ use log::info;
 use tokio::{
     select,
     signal::{ctrl_c, unix::SignalKind},
-    spawn,
+    task,
 };
 use tonic::transport::Server;
 
@@ -26,12 +26,12 @@ impl Executor {
     pub async fn serve(self) -> Result<(), Box<dyn std::error::Error>> {
         info!("Server listen on {}", self.controller_addr);
 
-        let controller_thread = spawn(
+        let controller_thread = task::spawn(
             Server::builder()
                 .add_service(self.controller)
                 .serve(self.controller_addr),
         );
-        let judger_thread = spawn(
+        let judger_thread = task::spawn(
             Server::builder()
                 .add_service(self.judger)
                 .serve(self.judger_addr),

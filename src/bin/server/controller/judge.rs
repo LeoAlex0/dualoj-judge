@@ -1,10 +1,11 @@
+mod error;
 mod fail;
 mod io;
 
 use std::{collections::BTreeMap, time::Duration};
 
 use dualoj_judge::proto::{
-    controller_server::Controller, judge_event::Event, JobErrorMsg, JobExitMsg, JudgeEvent,
+    controller_server::Controller, judge_event::Event, JobExitMsg, JudgeEvent,
     JudgeLimit,
 };
 use futures::{
@@ -20,10 +21,12 @@ use k8s_openapi::{
 };
 use kube::api::{Meta, ObjectMeta, PostParams};
 use log::warn;
-use tokio::{sync::oneshot, time::timeout};
+use tokio::{sync::oneshot, task, time::timeout};
 use tonic::{Response, Status};
 
 use crate::judge_server::JudgeMsg;
+
+use self::error::wrap_error;
 
 use super::ControlService;
 
@@ -41,32 +44,34 @@ impl ControlService {
         let ttl = Duration::from_secs(limit.time.into());
         let job = self.judge_job(limit, &inject_apikey, judged, judger);
         let job_name = job.name();
-        let (mut tx, rx) = mpsc::channel(20);
+        let (tx, rx) = mpsc::channel(20);
 
         // fail watcher & judge result watcher
-        tokio::spawn(tokio::time::timeout(
+        task::spawn(tokio::time::timeout(
             ttl,
-            fail::fail_watcher(self.job_api.clone(), job_name.clone(), tx.clone()),
+            error::wrap_error(
+                fail::fail_watcher(self.job_api.clone(), job_name.clone(), tx.clone()),
+                tx.clone(),
+            ),
         ));
-        tokio::spawn(register_judger_callback(
+        task::spawn(register_judger_callback(
             judged.to_string(),
             inject_apikey.to_string(),
             ttl,
             self.job_poster.clone(),
             tx.clone(),
         ));
-        match self.job_api.create(&PostParams::default(), &job).await {
-            Ok(_) => {
-                tokio::spawn(io::io_binder(self.pod_api.clone(), job_name));
-            }
-            Err(e) => {
-                let _ = tx
-                    .send(Ok(JudgeEvent {
-                        event: Some(Event::Error(JobErrorMsg { msg: e.to_string() })),
-                    }))
-                    .await;
-            }
-        }
+
+        wrap_error(
+            self.job_api.create(&PostParams::default(), &job),
+            tx.clone(),
+        )
+        .await;
+
+        task::spawn(error::wrap_error(
+            io::io_binder(self.pod_api.clone(), job_name),
+            tx,
+        ));
 
         Ok(Response::new(rx))
     }
@@ -181,7 +186,7 @@ async fn register_judger_callback(
     let (tx, rx) = oneshot::channel();
     let log_name = job_id.clone();
 
-    tokio::spawn(async move {
+    task::spawn(async move {
         job_poster
             .send(JudgeMsg {
                 name: job_id,

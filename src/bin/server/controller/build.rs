@@ -1,7 +1,7 @@
 use std::{env::temp_dir, future::ready, process::Stdio};
 
 use futures::{channel::mpsc, io::BufReader, AsyncBufReadExt, SinkExt, StreamExt, TryStreamExt};
-use tokio::process::Command;
+use tokio::{process::Command, task};
 use tokio_util::compat::TokioAsyncReadCompatExt;
 use tonic::{Code, Request, Response, Status};
 
@@ -67,7 +67,7 @@ impl ControlService {
         let tx1 = tx.clone();
         let tx2 = tx.clone();
 
-        tokio::spawn(
+        task::spawn(
             stdout_lines
                 .take_while(|it| ready(it.is_ok()))
                 .filter_map(|it| ready(it.ok()))
@@ -75,7 +75,7 @@ impl ControlService {
                 .forward(tx1),
         );
 
-        tokio::spawn(
+        task::spawn(
             stderr_lines
                 .take_while(|it| ready(it.is_ok()))
                 .filter_map(|it| ready(it.ok()))
@@ -83,7 +83,7 @@ impl ControlService {
                 .forward(tx2),
         );
 
-        tokio::spawn(async move {
+        task::spawn(async move {
             if let Ok(code) = child.wait().await {
                 if let Some(code) = code.code() {
                     let _ = tx

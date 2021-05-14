@@ -12,6 +12,7 @@ spec:
       labels:
         app: judger
     spec:
+      terminationGracePeriodSeconds: 0
       serviceAccountName: judger-account
       containers:
         - name: judger

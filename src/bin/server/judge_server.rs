@@ -3,16 +3,23 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 use dualoj_judge::proto::judger::{
     judger_response::JudgerStatus, judger_server::Judger, JudgerRequest, JudgerResponse, TestResult,
 };
-use futures::{channel::mpsc, FutureExt, StreamExt};
-use log::{info, warn};
-use tokio::{sync::{oneshot, Mutex}, task};
+use futures::{
+    channel::{mpsc, oneshot},
+    FutureExt, StreamExt, TryFutureExt,
+};
+use log::{error, info, warn};
+use tokio::{sync::Mutex, task};
 use tonic::{Request, Response, Status};
 
 pub(crate) struct JudgeMsg {
     pub name: String,
     pub api_key: String,
-    pub ttl: Duration,
-    pub signal_sender: oneshot::Sender<TestResult>,
+    /// TTL of registry.
+    pub ttl: Option<Duration>,
+    /// Cancel signal, when reached, then delete registry.
+    pub cancel: Option<oneshot::Receiver<()>>,
+    /// When get input from judger, then trigger this.
+    pub success: oneshot::Sender<TestResult>,
 }
 
 struct Key {
@@ -38,27 +45,47 @@ async fn receive_daemon(
 ) {
     request_receiver
         .for_each(|msg| async {
-            let ttl_handler = job_list.clone();
+            let cancel_handler = job_list.clone();
             let name = msg.name.clone();
-            let ttl = msg.ttl;
 
             let mut new_list = job_list.lock().await;
             new_list.insert(
                 msg.name,
                 Key {
                     api_key: msg.api_key,
-                    signal_sender: msg.signal_sender,
+                    signal_sender: msg.success,
                 },
             );
             drop(new_list);
             info!("{} registered", name);
 
-            // When TTL reached
-            task::spawn(tokio::time::sleep(ttl).then(|_| async move {
-                warn!("{} TTL reached", name);
-                let mut cur_map = ttl_handler.lock().await;
+            let name1 = name.clone();
+            let name2 = name.clone();
+            let canceller = || async move {
+                let mut cur_map = cancel_handler.lock().await;
                 cur_map.remove(&name);
-            }));
+            };
+            let canceller1 = canceller.clone();
+
+            // When TTL reached
+            if let Some(ttl) = msg.ttl {
+                task::spawn(tokio::time::sleep(ttl).then(|_| async move {
+                    warn!("{} TTL reached", name1);
+                    canceller().await;
+                }));
+            }
+
+            // FIXME!: it cannot receive cancel signal.
+            if let Some(cancel) = msg.cancel {
+                task::spawn(cancel.then(|e| async move {
+                    if e.is_ok() {
+                        warn!("{} Cancel reached", name2);
+                        canceller1().await;
+                    } else {
+                        error!("{} cancel canceled", name2);
+                    }
+                }));
+            }
         })
         .await;
 }

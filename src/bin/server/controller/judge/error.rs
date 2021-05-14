@@ -2,7 +2,10 @@ use core::future::Future;
 use std::{error::Error, fmt::Display};
 
 use dualoj_judge::proto::{judge_event::Event, JobErrorMsg, JudgeEvent};
-use futures::{channel::mpsc::Sender, SinkExt};
+use futures::{
+    channel::{mpsc::Sender, oneshot::Canceled},
+    SinkExt,
+};
 use tokio::time::error::Elapsed;
 use tonic::Status;
 
@@ -49,9 +52,11 @@ where
 pub enum JudgeError {
     PodJobNotFoundError { job_name: String },
     IOBindingFail { job_name: String, pod_name: String },
+    Log(String),
     KubeError(kube::Error),
     Timeout(Elapsed),
     IOError(std::io::Error),
+    Canceled(Canceled),
 }
 
 impl Display for JudgeError {
@@ -66,6 +71,8 @@ impl Display for JudgeError {
             Self::KubeError(e) => e.fmt(f),
             Self::Timeout(e) => e.fmt(f),
             Self::IOError(e) => e.fmt(f),
+            Self::Canceled(e) => e.fmt(f),
+            JudgeError::Log(s) => s.fmt(f),
         }
     }
 }
@@ -87,5 +94,11 @@ impl From<Elapsed> for JudgeError {
 impl From<std::io::Error> for JudgeError {
     fn from(e: std::io::Error) -> Self {
         JudgeError::IOError(e)
+    }
+}
+
+impl From<Canceled> for JudgeError {
+    fn from(e: Canceled) -> Self {
+        JudgeError::Canceled(e)
     }
 }

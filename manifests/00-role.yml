@@ -5,7 +5,7 @@ metadata:
   name: build-machine
 rules:
   - apiGroups: [""]
-    resources: ["pods"]
+    resources: ["pods", "pods/attach"]
     verbs: ["get", "list", "watch", "create"]
   - apiGroups: ["batch"]
     resources: ["jobs"]

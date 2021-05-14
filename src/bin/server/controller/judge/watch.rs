@@ -15,14 +15,14 @@ use crate::controller::judge::error::ResultInspectErr;
 
 use super::error::JudgeError;
 
-pub(crate) async fn fail_watcher(
+pub(crate) async fn watch_job(
     jobs: Api<Job>,
     name: String,
     mut event_sender: Sender<Result<JudgeEvent, tonic::Status>>,
 ) -> Result<(), JudgeError> {
     // Select Job.
     let field_selector = format!("metadata.name={}", name);
-    debug!("{} fail watcher forked, watching: {}", name, field_selector);
+    debug!("{} job watcher forked, watching: {}", name, field_selector);
     let event_stream = jobs
         .watch(&ListParams::default().fields(&field_selector), "0")
         .await
@@ -34,7 +34,7 @@ pub(crate) async fn fail_watcher(
         .take_while(|x| ready(x.is_ok()))
         .filter_map(|x| ready(x.ok()));
 
-    debug!("{} fail-watcher get event stream OK", name);
+    debug!("{} job-watcher get event stream OK", name);
 
     // Filter event stream & send event.
     // TODO!: refactor this use filter_map

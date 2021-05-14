@@ -20,6 +20,7 @@ pub(crate) async fn fail_watcher(
     name: String,
     mut event_sender: Sender<Result<JudgeEvent, tonic::Status>>,
 ) -> Result<(), JudgeError> {
+    // Select Job.
     let field_selector = format!("metadata.name={}", name);
     debug!("{} fail watcher forked, watching: {}", name, field_selector);
     let event_stream = jobs
@@ -27,6 +28,7 @@ pub(crate) async fn fail_watcher(
         .await
         .inspect_err(|e| warn!("{} watch fail: {}", name, e))?;
 
+    // Get event stream
     let mut res = event_stream
         .boxed()
         .take_while(|x| ready(x.is_ok()))
@@ -34,6 +36,8 @@ pub(crate) async fn fail_watcher(
 
     debug!("{} fail-watcher get event stream OK", name);
 
+    // Filter event stream & send event.
+    // TODO!: refactor this use filter_map
     while let Some(x) = res.next().await {
         if let Some(event) = match x {
             WatchEvent::Added(job) => job

@@ -48,18 +48,24 @@ where
 #[derive(Debug)]
 pub enum JudgeError {
     PodJobNotFoundError { job_name: String },
+    IOBindingFail { job_name: String, pod_name: String },
     KubeError(kube::Error),
     Timeout(Elapsed),
+    IOError(std::io::Error),
 }
 
 impl Display for JudgeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::PodJobNotFoundError { job_name: job_id } => {
-                write!(f, "Pod of job {} not found", job_id)
+            Self::PodJobNotFoundError { job_name } => {
+                write!(f, "Pod of job {} not found", job_name)
+            }
+            JudgeError::IOBindingFail { job_name, pod_name } => {
+                write!(f, "Pod {} of job {} IO binding fail", pod_name, job_name)
             }
             Self::KubeError(e) => e.fmt(f),
             Self::Timeout(e) => e.fmt(f),
+            Self::IOError(e) => e.fmt(f),
         }
     }
 }
@@ -75,5 +81,11 @@ impl From<kube::Error> for JudgeError {
 impl From<Elapsed> for JudgeError {
     fn from(e: Elapsed) -> Self {
         JudgeError::Timeout(e)
+    }
+}
+
+impl From<std::io::Error> for JudgeError {
+    fn from(e: std::io::Error) -> Self {
+        JudgeError::IOError(e)
     }
 }

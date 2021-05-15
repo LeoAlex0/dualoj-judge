@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 tokio = { version = "1.4.0", features = ["full"] }
+tokio-stream = "0.1.5"
 tonic = "0.4.1"
 prost = "0.7.0"
 rand = "0.8.3"

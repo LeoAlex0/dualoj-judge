@@ -12,7 +12,7 @@ COPY Cargo.lock ./Cargo.lock
 COPY build.rs ./build.rs
 COPY proto ./proto
 
-RUN cargo build && cargo install --path . --root /
+RUN cargo install --path . --root /
 
 FROM docker.io/library/alpine:3.13
 COPY --from=build /bin/a-plus-b-judger /bin

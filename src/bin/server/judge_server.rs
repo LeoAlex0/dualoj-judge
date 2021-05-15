@@ -5,7 +5,7 @@ use dualoj_judge::proto::judger::{
 };
 use futures::{
     channel::{mpsc, oneshot},
-    FutureExt, StreamExt, TryFutureExt,
+    FutureExt, StreamExt,
 };
 use log::{error, info, warn};
 use tokio::{sync::Mutex, task};
@@ -19,7 +19,7 @@ pub(crate) struct JudgeMsg {
     /// Cancel signal, when reached, then delete registry.
     pub cancel: Option<oneshot::Receiver<()>>,
     /// When get input from judger, then trigger this.
-    pub success: oneshot::Sender<TestResult>,
+    pub on_success: oneshot::Sender<TestResult>,
 }
 
 struct Key {
@@ -53,7 +53,7 @@ async fn receive_daemon(
                 msg.name,
                 Key {
                     api_key: msg.api_key,
-                    signal_sender: msg.success,
+                    signal_sender: msg.on_success,
                 },
             );
             drop(new_list);
@@ -75,16 +75,16 @@ async fn receive_daemon(
                 }));
             }
 
-            // FIXME!: it cannot receive cancel signal.
             if let Some(cancel) = msg.cancel {
-                task::spawn(cancel.then(|e| async move {
+                task::spawn(async move {
+                    let e = cancel.await;
                     if e.is_ok() {
                         warn!("{} Cancel reached", name2);
                         canceller1().await;
                     } else {
                         error!("{} cancel canceled", name2);
                     }
-                }));
+                });
             }
         })
         .await;
@@ -99,11 +99,12 @@ impl Judger for JudgeServer {
         let req = request.into_inner();
         let mut list = self.job_list.lock().await;
         Ok(Response::new(
-            if let Some((id, val)) = list.remove_entry(&req.job_id) {
+            if let Some((id, val)) = list.remove_entry(&req.judge_id) {
                 if val.api_key == req.api_key {
                     task::spawn(async move {
                         let _ = val.signal_sender.send(req.result);
                     });
+                    info!("{} judger posted", id);
                     JudgerResponse {
                         status: JudgerStatus::Ok.into(),
                     }

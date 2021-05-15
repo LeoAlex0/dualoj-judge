@@ -1,8 +1,6 @@
 use std::str::FromStr;
 
-use dualoj_judge::proto::{
-    self, job_exit_msg::Code, judge_event::Event, JobCreatedMsg, JobExitMsg, JudgeEvent,
-};
+use dualoj_judge::proto::{self, judge_event::Event, JobCreatedMsg, JobErrorMsg, JudgeEvent};
 use futures::{channel::mpsc::Sender, future::ready, SinkExt, StreamExt};
 use k8s_openapi::api::batch::v1::Job;
 use kube::{
@@ -15,6 +13,7 @@ use crate::controller::judge::error::ResultInspectErr;
 
 use super::error::JudgeError;
 
+#[deprecated]
 pub(crate) async fn watch_job(
     jobs: Api<Job>,
     name: String,
@@ -39,31 +38,34 @@ pub(crate) async fn watch_job(
     // Filter event stream & send event.
     // TODO!: refactor this use filter_map
     while let Some(x) = res.next().await {
-        if let Some(event) = match x {
-            WatchEvent::Added(job) => job
-                .metadata
-                .uid
-                .as_ref()
-                .map(|s| uuid::Uuid::from_str(s).ok())
-                .flatten()
-                .map(|uid| {
-                    Event::Created(JobCreatedMsg {
-                        job_uid: proto::Uuid {
-                            data: uid.as_bytes().to_vec(),
-                        },
-                    })
-                }),
-            WatchEvent::Modified(_) => None,
-            WatchEvent::Deleted(_) => None,
-            WatchEvent::Bookmark(_) => None,
-            WatchEvent::Error(e) => Some(Event::Exit(JobExitMsg {
-                judge_code: Code::RuntimeError.into(),
-                other_msg: Some(e.message),
-            })),
-        } {
-            let _ = event_sender
-                .send(Ok(JudgeEvent { event: Some(event) }))
-                .await;
+        match x {
+            WatchEvent::Added(job) => {
+                if let Some(uid) = job
+                    .metadata
+                    .uid
+                    .as_ref()
+                    .map(|s| uuid::Uuid::from_str(s).ok())
+                    .flatten()
+                {
+                    let mut uuid = proto::Uuid::default();
+                    uuid.data = uid.as_bytes().to_vec();
+
+                    let _ = event_sender
+                        .send(Ok(JudgeEvent {
+                            event: Some(Event::Created(JobCreatedMsg { job_uid: uuid })),
+                        }))
+                        .await;
+                }
+                return Ok(());
+            }
+            WatchEvent::Error(e) => {
+                let event = Event::Error(JobErrorMsg { msg: e.message });
+                let _ = event_sender
+                    .send(Ok(JudgeEvent { event: Some(event) }))
+                    .await;
+                return Ok(());
+            }
+            _ => {}
         }
     }
     Ok(())

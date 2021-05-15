@@ -1,122 +1,94 @@
-use dualoj_judge::proto::JudgeEvent;
-use futures::{
-    channel::{
-        mpsc::{self, Sender},
-        oneshot,
-    },
-    SinkExt, StreamExt,
-};
+use std::{str::FromStr, time::Duration};
+
+use futures::{channel::mpsc::Sender, future::try_join, SinkExt};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{
-    api::{ListParams, Meta, WatchEvent},
+    api::{DeleteParams, Meta},
     Api,
 };
-use log::{error, info};
-use tokio::{join, task, try_join};
+use log::error;
+use tokio::{task, time::timeout};
 
 use crate::{
-    controller::judge::{error::ResultInspectErr, judger::register_judger_callback},
+    controller::judge::{
+        error::ResultInspectErr,
+        judger::register_judger_callback,
+        pod_listener::{pod_listener, ListenPodResult},
+    },
     judge_server::JudgeMsg,
+};
+use dualoj_judge::proto::{
+    self, job_exit_msg::Code, judge_event::Event, JobCreatedMsg, JobExitMsg, JudgeEvent,
 };
 
 use super::{bind, error::JudgeError};
 
 pub(crate) async fn launch(
     pod_api: Api<Pod>,
-    job_name: String,
+    judge_id: String,
     api_key: String,
+    ttl: Duration,
     job_poster: Sender<JudgeMsg>,
-    controller_sender: Sender<Result<JudgeEvent, tonic::Status>>,
+    mut controller_sender: Sender<Result<JudgeEvent, tonic::Status>>,
 ) -> Result<(), JudgeError> {
     let ListenPodResult {
         pod_create,
         pod_end,
-    } = pod_listener(pod_api.clone(), &job_name).await?;
+    } = pod_listener(pod_api.clone(), &judge_id).await?;
 
     let pod = pod_create
         .await
-        .inspect_err(|e| error!("{} failed to watch pod start: {}", job_name, e))?;
+        .inspect_err(|e| error!("{} failed to watch pod start: {}", judge_id, e))?;
+    let pod_name = pod.name();
 
-    try_join!(
-        bind::bind_io(pod_api, pod),
-        register_judger_callback(job_name, api_key, pod_end, job_poster, controller_sender)
-    )?;
+    let mut sender1 = controller_sender.clone();
+    let uid = pod.meta().uid.clone();
+    task::spawn(async move {
+        let uid_str = uid.unwrap();
+        let uuid = uuid::Uuid::from_str(&uid_str).unwrap();
+        let event = Event::Created(JobCreatedMsg {
+            job_uid: proto::Uuid {
+                data: uuid.as_bytes().to_vec(),
+            },
+        });
+        let _ = sender1.send(Ok(JudgeEvent { event: Some(event) })).await;
+    });
+
+    let ac_receiver = register_judger_callback(
+        judge_id,
+        api_key,
+        pod_end,
+        job_poster,
+        controller_sender.clone(),
+    );
+    let result = timeout(
+        ttl,
+        try_join(bind::bind_io(pod_api.clone(), pod), ac_receiver),
+    )
+    .await;
+
+    // TLE or closed already, clean pods.
+    task::spawn(async move {
+        let dp = DeleteParams::default();
+        pod_api.delete(&pod_name, &dp).await
+    });
+
+    match result {
+        Err(_) => {
+            // Send TLE signal.
+            let mut exit_msg = JobExitMsg::default();
+            exit_msg.set_judge_code(Code::TimeLimitExceeded);
+
+            let _ = controller_sender
+                .send(Ok(JudgeEvent {
+                    event: Some(Event::Exit(exit_msg)),
+                }))
+                .await;
+        }
+        Ok(e) => {
+            e?;
+        }
+    }
 
     Ok(())
-}
-
-struct ListenPodResult {
-    pod_create: oneshot::Receiver<Pod>,
-    pod_end: oneshot::Receiver<()>,
-}
-async fn pod_listener(pod_api: Api<Pod>, job_name: &str) -> Result<ListenPodResult, kube::Error> {
-    let (tx_start, rx_start) = oneshot::channel();
-    let (tx_end, rx_end) = oneshot::channel();
-    let (tx_mul_start, rx_mul_start) = mpsc::channel(1);
-    let (tx_mul_end, rx_mul_end) = mpsc::channel(1);
-
-    let mut result = pod_api
-        .watch(
-            &ListParams::default().labels(&format!("job-name={}", job_name)),
-            "0",
-        )
-        .await?
-        .boxed();
-
-    let canceller = task::spawn(async move {
-        while let Some(Ok(event)) = result.next().await {
-            match event {
-                WatchEvent::Added(pod) => {
-                    info!("{} pod created", pod.name());
-                    if is_running(&pod) {
-                        let mut mul = tx_mul_start.clone();
-                        task::spawn(async move { mul.send(pod).await });
-                    }
-                }
-                WatchEvent::Modified(pod) => {
-                    info!("{} pod changed", pod.name());
-                    if is_running(&pod) {
-                        let mut mul = tx_mul_start.clone();
-                        task::spawn(async move { mul.send(pod).await });
-                    }
-                }
-                WatchEvent::Deleted(p) => {
-                    info!("{} deleted. send delete signal", p.name());
-                    let mut end = tx_mul_end.clone();
-                    task::spawn(async move { end.send(()).await });
-                }
-                WatchEvent::Error(e) => {
-                    error!("Error occured, send delete signal: {}", e.to_string());
-                    let mut end = tx_mul_end.clone();
-                    task::spawn(async move { end.send(()).await });
-                }
-                _ => {}
-            }
-        }
-    });
-
-    task::spawn(async move {
-        join!(
-            forward_first(tx_start, rx_mul_start),
-            forward_first(tx_end, rx_mul_end),
-        );
-        canceller.abort();
-    });
-    Ok(ListenPodResult {
-        pod_create: rx_start,
-        pod_end: rx_end,
-    })
-}
-
-async fn forward_first<T>(tx: oneshot::Sender<T>, mut rx: mpsc::Receiver<T>) {
-    if let Some(x) = rx.next().await {
-        let _ = tx.send(x);
-    }
-}
-
-fn is_running(pod: &Pod) -> bool {
-    let s = pod.status.as_ref().expect("status exists on pod");
-    let current = s.phase.clone().unwrap_or_default();
-    info!("{} current phase: {}", pod.name(), current);
-    current == "Running"
 }

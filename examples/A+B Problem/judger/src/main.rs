@@ -58,14 +58,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 struct ResultPoster {
     client: JudgerClient<tonic::transport::channel::Channel>,
-    name: String,
+    id: String,
     apikey: String,
 }
 
 impl ResultPoster {
     pub async fn default() -> Option<Self> {
-        if let (Ok(connect_addr), Ok(name), Ok(apikey)) =
-            (var("JUDGER_ADDR"), var("JOB_ID"), var("APIKEY"))
+        if let (Ok(connect_addr), Ok(id), Ok(apikey)) =
+            (var("JUDGER_ADDR"), var("JUDGE_ID"), var("APIKEY"))
         {
             if let Some(client) =
                 pb::judger_client::JudgerClient::connect(format!("grpc://{}", connect_addr))
@@ -74,7 +74,7 @@ impl ResultPoster {
             {
                 Some(ResultPoster {
                     client,
-                    name,
+                    id,
                     apikey,
                 })
             } else {
@@ -91,7 +91,7 @@ impl ResultPoster {
         let _ = self
             .client
             .post_test_result(JudgerRequest {
-                job_id: self.name.clone(),
+                judge_id: self.id.clone(),
                 api_key: self.apikey.clone(),
                 result: TestResult {
                     other_msg,

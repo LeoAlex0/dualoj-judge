@@ -26,26 +26,24 @@ pub(crate) async fn register_judger_callback(
                 name: job_id,
                 api_key,
                 ttl: None,
-                success: tx,
+                on_success: tx,
                 cancel: Some(canceller),
             })
             .await
     });
 
-    if let Ok(result) = rx
+    let result = rx
         .await
-        // When Pod exit, this will be canceled, not so serious.
-        .inspect_err(|e| warn!("{} Judger canceled: {}", log_name, e))
-    {
-        let _ = controller_sender
-            .send(Ok(JudgeEvent {
-                event: Some(Event::Exit(JobExitMsg {
-                    judge_code: result.code,
-                    other_msg: result.other_msg,
-                })),
-            }))
-            .await;
-    }
+        .inspect_err(|e| warn!("{} Judger canceled: {}", log_name, e))?;
+
+    let _ = controller_sender
+        .send(Ok(JudgeEvent {
+            event: Some(Event::Exit(JobExitMsg {
+                judge_code: result.code,
+                other_msg: result.other_msg,
+            })),
+        }))
+        .await;
 
     Ok(())
 }

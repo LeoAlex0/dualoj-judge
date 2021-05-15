@@ -57,7 +57,7 @@ message JobExitMsg {
   enum Code {
     Accepted = 1;
     WrongAnswer = 2;
-    TimeLimitExeeded = 3;
+    TimeLimitExceeded = 3;
     RuntimeError = 4;
     Abort = 128;
     Other = 255;

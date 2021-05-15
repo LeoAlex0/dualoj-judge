@@ -14,7 +14,9 @@ message TestResult {
 }
 
 message JudgerRequest {
-  required string JobID = 1;
+  // from EnvVar "JUDGE_ID"
+  required string JudgeID = 1;
+  // from EnvVar "APIKEY"
   required string ApiKey = 2;
   required TestResult Result = 255;
 }
@@ -29,4 +31,5 @@ message JudgerResponse {
   required JudgerStatus Status = 1;
 }
 
+// Connect to ${JUDGER_ADDR} for posting result.
 service Judger { rpc PostTestResult(JudgerRequest) returns (JudgerResponse); }

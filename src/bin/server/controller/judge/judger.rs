@@ -1,49 +1,34 @@
-use dualoj_judge::proto::{judge_event::Event, JobExitMsg, JudgeEvent};
+use dualoj_judge::proto::judger::TestResult;
 use futures::{
     channel::{mpsc::Sender, oneshot},
     SinkExt,
 };
-use log::warn;
-use tokio::task;
 
 use crate::judge_server::JudgeMsg;
 
-use super::error::{JudgeError, ResultInspectErr};
+use super::error::JudgeError;
 
-pub(crate) async fn register_judger_callback(
-    job_id: String,
-    api_key: String,
-    canceller: oneshot::Receiver<()>,
+pub(crate) struct JudgeIO {
+    pub canceller: oneshot::Receiver<()>,
+    pub on_receive: oneshot::Sender<TestResult>,
+}
+
+pub(crate) async fn set_judge_server(
     mut job_poster: Sender<JudgeMsg>,
-    mut controller_sender: Sender<Result<JudgeEvent, tonic::Status>>,
+    judge_id: String,
+    api_key: String,
+    io: JudgeIO,
 ) -> Result<(), JudgeError> {
-    let (tx, rx) = oneshot::channel();
-    let log_name = job_id.clone();
-
-    task::spawn(async move {
-        job_poster
-            .send(JudgeMsg {
-                name: job_id,
-                api_key,
-                ttl: None,
-                on_success: tx,
-                cancel: Some(canceller),
-            })
-            .await
-    });
-
-    let result = rx
+    job_poster
+        .send(JudgeMsg {
+            name: judge_id,
+            api_key,
+            ttl: None,
+            on_success: io.on_receive,
+            cancel: Some(io.canceller),
+        })
         .await
-        .inspect_err(|e| warn!("{} Judger canceled: {}", log_name, e))?;
-
-    let _ = controller_sender
-        .send(Ok(JudgeEvent {
-            event: Some(Event::Exit(JobExitMsg {
-                judge_code: result.code,
-                other_msg: result.other_msg,
-            })),
-        }))
-        .await;
+        .unwrap();
 
     Ok(())
 }

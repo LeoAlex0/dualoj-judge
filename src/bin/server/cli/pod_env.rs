@@ -1,7 +1,7 @@
 use std::net::IpAddr;
 
 use structopt::StructOpt;
-#[derive(StructOpt)]
+#[derive(StructOpt, Clone)]
 pub(crate) struct Param {
     #[structopt(env = "POD_NAMESPACE", default_value = "dualoj")]
     pub namespace: String,

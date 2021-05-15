@@ -52,7 +52,7 @@ message JudgeRequest {
   required JudgeLimit Limit = 3;
 }
 
-message JobCreatedMsg { required UUID JobUID = 1; }
+message JobCreatedMsg { required string JobUID = 1; }
 message JobExitMsg {
   enum Code {
     Accepted = 1;

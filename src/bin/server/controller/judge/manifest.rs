@@ -1,42 +1,27 @@
-use std::{collections::BTreeMap, net::SocketAddr};
+use std::collections::BTreeMap;
 
-use dualoj_judge::proto::JudgeLimit;
 use k8s_openapi::{
     api::core::v1::{Container, EnvVar, Pod, PodSpec, ResourceRequirements},
     apimachinery::pkg::{api::resource::Quantity, apis::meta::v1::OwnerReference},
 };
 use kube::api::ObjectMeta;
 
-use crate::{
-    cli::{pod_env, registry},
-    controller::judge::{JUDGER_CONTAINER_NAME, SOLVER_CONTAINER_NAME},
-};
+use crate::controller::judge::{JUDGER_CONTAINER_NAME, SOLVER_CONTAINER_NAME};
+
+use super::judge::{JudgeEnv, JudgePodParam, JudgeSecure};
 
 /// Generate Job for judge.
-pub(crate) fn judge_pod(
-    pod_env: &pod_env::Param,
-    registry: &registry::Param,
-    judger_addr: &SocketAddr,
-    JudgeLimit {
-        cpu,
-        memory,
-        time: _e,
-    }: JudgeLimit,
-    apikey: String,
-    judge_id: String,
-    judged: uuid::Uuid,
-    judger: uuid::Uuid,
-) -> Pod {
+pub(crate) fn judge_pod(env: &JudgeEnv, secure: &JudgeSecure, param: &JudgePodParam) -> Pod {
     let mut limits = BTreeMap::new();
-    limits.insert("cpu".into(), Quantity(format!("{}m", cpu)));
-    limits.insert("memory".into(), Quantity(format!("{}Mi", memory)));
+    limits.insert("cpu".into(), Quantity(format!("{}m", param.cpu_limit)));
+    limits.insert("memory".into(), Quantity(format!("{}Mi", param.mem_limit)));
 
     Pod {
         metadata: ObjectMeta {
             labels: Some({
                 let mut labels = BTreeMap::new();
                 labels.insert("app".into(), "judged".into());
-                labels.insert("judge-id".into(), judge_id.clone());
+                labels.insert("judge-id".into(), secure.judge_id.clone());
 
                 labels
             }),
@@ -46,8 +31,8 @@ pub(crate) fn judge_pod(
                 api_version: "v1".into(),
                 controller: Some(true),
                 kind: "Pod".into(),
-                name: pod_env.name.clone(),
-                uid: pod_env.uid.clone(),
+                name: env.pod_env.name.clone(),
+                uid: env.pod_env.uid.clone(),
                 ..Default::default()
             }]),
 
@@ -57,7 +42,7 @@ pub(crate) fn judge_pod(
             containers: vec![
                 Container {
                     name: SOLVER_CONTAINER_NAME.into(),
-                    image: Some(registry.get_image_url(&judged.to_string())),
+                    image: Some(param.solver_image.clone()),
                     image_pull_policy: Some("Always".into()),
                     resources: Some(ResourceRequirements {
                         limits: Some(limits.clone()),
@@ -70,7 +55,7 @@ pub(crate) fn judge_pod(
                 },
                 Container {
                     name: JUDGER_CONTAINER_NAME.into(),
-                    image: Some(registry.get_image_url(&judger.to_string())),
+                    image: Some(param.judger_image.clone()),
                     image_pull_policy: Some("Always".into()),
                     resources: Some(ResourceRequirements {
                         limits: Some(limits),
@@ -83,18 +68,17 @@ pub(crate) fn judge_pod(
                     env: Some(vec![
                         EnvVar {
                             name: "APIKEY".into(),
-                            value: Some(apikey),
+                            value: Some(secure.apikey.clone()),
                             value_from: None,
                         },
                         EnvVar {
                             name: "JUDGE_ID".into(),
-                            value: Some(judge_id),
+                            value: Some(secure.judge_id.clone()),
                             value_from: None,
                         },
                         EnvVar {
                             name: "JUDGER_ADDR".into(),
-                            // TODO!: use service & k8s network-policy instead of using ip directly.
-                            value: Some(judger_addr.to_string()),
+                            value: Some(env.server_addr.to_string()),
                             value_from: None,
                         },
                     ]),

@@ -1,18 +1,14 @@
 use core::future::Future;
 use std::{error::Error, fmt::Display};
 
-use dualoj_judge::proto::{judge_event::Event, JobErrorMsg, JudgeEvent};
+use dualoj_judge::proto::{judge_event::Event, JobErrorMsg};
 use futures::{
     channel::{mpsc::Sender, oneshot::Canceled},
     SinkExt,
 };
 use tokio::time::error::Elapsed;
-use tonic::Status;
 
-pub async fn wrap_error<F, T, E>(
-    fut: F,
-    mut event_sender: Sender<Result<JudgeEvent, Status>>,
-) -> Option<T>
+pub async fn wrap_error<F, T, E>(mut event_sender: Sender<Event>, fut: F) -> Option<T>
 where
     F: Future<Output = Result<T, E>>,
     E: ToString,
@@ -22,9 +18,7 @@ where
         Err(e) => {
             // If error send error, ignore it.
             let _ = event_sender
-                .send(Ok(JudgeEvent {
-                    event: Some(Event::Error(JobErrorMsg { msg: e.to_string() })),
-                }))
+                .send(Event::Error(JobErrorMsg { msg: e.to_string() }))
                 .await;
             None
         }

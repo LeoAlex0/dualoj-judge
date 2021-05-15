@@ -1,19 +1,16 @@
 mod bind;
 mod error;
+mod judge;
 mod judger;
 mod manifest;
 mod pod_listener;
-mod post_pod;
-mod watch;
 
-use std::time::Duration;
-
-use self::error::wrap_error;
+use self::judge::JudgeEnv;
 use super::ControlService;
-use dualoj_judge::proto::{controller_server::Controller, JudgeLimit};
+use dualoj_judge::proto::{controller_server::Controller, JudgeEvent, JudgeLimit};
 
-use futures::channel::mpsc;
-use kube::api::PostParams;
+use futures::{channel::mpsc, StreamExt};
+
 use tokio::task;
 use tonic::{Response, Status};
 
@@ -27,41 +24,31 @@ impl ControlService {
         judged: uuid::Uuid,
         judger: uuid::Uuid,
     ) -> Result<Response<<ControlService as Controller>::JudgeStream>, Status> {
-        let apikey = uuid::Uuid::new_v4();
-        let judge_id = uuid::Uuid::new_v4();
-        let ttl = Duration::from_secs(limit.time.into());
-        let pod = manifest::judge_pod(
-            &self.pod_env,
-            &self.registry,
-            &self.judger_addr,
+        let (tx1, rx1) = mpsc::channel(20);
+        let (tx2, rx2) = mpsc::channel(20);
+
+        let judge = judge::Judge::new(
+            self.pod_api.clone(),
+            JudgeEnv {
+                pod_env: self.pod_env.clone(),
+                server_addr: self.judger_addr.clone(),
+            },
+            self.job_poster.clone(),
+            tx1.clone(),
+            self.registry.get_image_url(&judged.to_string()),
+            self.registry.get_image_url(&judger.to_string()),
             limit,
-            apikey.to_string(),
-            judge_id.to_string(),
-            judged,
-            judger,
         );
-        let (tx, rx) = mpsc::channel(20);
 
-        // watch job & judge result watcher
+        task::spawn(judge.invoke());
 
-        wrap_error(
-            self.pod_api.create(&PostParams::default(), &pod),
-            tx.clone(),
-        )
-        .await;
+        task::spawn(
+            rx1.map(|e| JudgeEvent { event: Some(e) })
+                .map(Ok)
+                .map(Ok)
+                .forward(tx2),
+        );
 
-        task::spawn(error::wrap_error(
-            post_pod::launch(
-                self.pod_api.clone(),
-                judge_id.to_string(),
-                apikey.to_string(),
-                ttl,
-                self.job_poster.clone(),
-                tx.clone(),
-            ),
-            tx,
-        ));
-
-        Ok(Response::new(rx))
+        Ok(Response::new(rx2))
     }
 }

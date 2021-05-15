@@ -37,9 +37,7 @@ impl Client {
         while let Some(msg) = resp.message().await? {
             if let Some(event) = msg.event {
                 match event {
-                    Event::Created(msg) => {
-                        println!("Created: {}", uuid::Uuid::from_slice(&msg.job_uid.data)?)
-                    }
+                    Event::Created(msg) => println!("Created: {}", msg.job_uid),
                     Event::Exit(msg) => println!("Exited: {:?}", msg),
                     Event::Error(msg) => println!("Error: {:?}", msg),
                 }

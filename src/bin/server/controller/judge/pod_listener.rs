@@ -36,35 +36,39 @@ pub async fn pod_listener(
 
     let canceller = task::spawn(async move {
         while let Some(Ok(event)) = result.next().await {
+            let mut run = tx_mul_start.clone();
+            let mut end = tx_mul_end.clone();
+            let delete = async move { end.send(()).await };
+            let running = |pod: Pod| async move { run.send(pod).await };
             match event {
                 WatchEvent::Added(pod) => {
                     info!("{} pod created", pod.name());
-                    if is_running(&pod) {
-                        let mut mul = tx_mul_start.clone();
-                        task::spawn(async move { mul.send(pod).await });
-                    }
                 }
                 WatchEvent::Modified(pod) => {
-                    info!("{} pod changed", pod.name());
-                    if is_running(&pod) {
-                        let mut mul = tx_mul_start.clone();
-                        task::spawn(async move { mul.send(pod).await });
-                    } else if is_fail(&pod) {
-                        let mut end = tx_mul_end.clone();
-                        task::spawn(async move { end.send(()).await });
-                        break;
+                    if let Some(phase) = pod.status.clone().unwrap().phase {
+                        info!("{} current phase: {}", pod.name(), phase);
                     }
+                    match phase(&pod).as_str() {
+                        "Running" => {
+                            task::spawn(running(pod));
+                        }
+                        "Failed" => {
+                            task::spawn(delete);
+                        }
+                        "Succeeded" => {
+                            task::spawn(delete);
+                        }
+                        _ => {}
+                    };
                 }
                 WatchEvent::Deleted(p) => {
                     info!("{} deleted. send delete signal", p.name());
-                    let mut end = tx_mul_end.clone();
-                    task::spawn(async move { end.send(()).await });
+                    task::spawn(delete);
                     break;
                 }
                 WatchEvent::Error(e) => {
                     error!("Error occured, send delete signal: {}", e.to_string());
-                    let mut end = tx_mul_end.clone();
-                    task::spawn(async move { end.send(()).await });
+                    task::spawn(delete);
                     break;
                 }
                 _ => {}
@@ -93,16 +97,10 @@ async fn forward_first<T: Debug>(tx: oneshot::Sender<T>, mut rx: mpsc::Receiver<
     }
 }
 
-fn is_running(pod: &Pod) -> bool {
-    let s = pod.status.as_ref().expect("status exists on pod");
-    let current = s.phase.clone().unwrap_or_default();
-    info!("{} current phase: {}", pod.name(), current);
-    current == "Running"
-}
-
-fn is_fail(pod: &Pod) -> bool {
-    let s = pod.status.as_ref().expect("status exists on pod");
-    let current = s.phase.clone().unwrap_or_default();
-    info!("{} current phase: {}", pod.name(), current);
-    current == "Failed"
+fn phase(pod: &Pod) -> String {
+    if let Some(s) = pod.status.as_ref() {
+        s.phase.clone().unwrap_or_default()
+    } else {
+        String::new()
+    }
 }

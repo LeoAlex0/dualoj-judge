@@ -38,7 +38,7 @@ pub(crate) async fn launch(
         .inspect_err(|e| error!("{} failed to watch pod start: {}", job_name, e))?;
 
     try_join!(
-        bind::bind_io(pod_api, job_name.clone(), pod),
+        bind::bind_io(pod_api, pod),
         register_judger_callback(job_name, api_key, pod_end, job_poster, controller_sender)
     )?;
 

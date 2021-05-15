@@ -1,17 +1,14 @@
-use std::time::Duration;
+use std::future::ready;
 
-use futures::future::try_join;
+use futures::{FutureExt, StreamExt, TryStreamExt, future::try_join};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{
-    api::{AttachParams, Meta},
+    api::{AttachParams, LogParams, Meta},
     Api,
 };
-use log::{error, info, warn};
-use tokio::{
-    io::{self, copy, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
-    join,
-    time::timeout,
-};
+use log::{error, info};
+use tokio::io::copy;
+use tokio_util::compat::FuturesAsyncReadCompatExt;
 
 use crate::controller::judge::{
     error::{JudgeError, ResultInspectErr},
@@ -19,85 +16,77 @@ use crate::controller::judge::{
 };
 
 /// Bind pods' stdin & stdout of judger & solver
-pub async fn bind_io(pods: Api<Pod>, job_name: String, pod: Pod) -> Result<(), JudgeError> {
+pub async fn bind_io(pods: Api<Pod>, pod: Pod) -> Result<(), JudgeError> {
     let pod_name = pod.name();
 
-    let solver_ap = attach_param(SOLVER_CONTAINER_NAME);
-    let judger_ap = attach_param(JUDGER_CONTAINER_NAME);
-    let solver = pods.attach(pod_name.as_str(), &solver_ap);
-    let judger = pods.attach(pod_name.as_str(), &judger_ap);
+    info!("{} pod io binding", pod_name);
 
-    info!("{} job located pod: {}, attaching", job_name, pod_name);
-    // TODO!: Customize attach timeout.
-    // FIXME!: Binding timeout.
-    let (mut solver, mut judger) = try_join(solver, judger)
-        .await
-        // .inspect_err(|e| error!("{} binding timeout: {}", job_name, e))?
-        .inspect_err(|e| error!("{} attach fail: {}", job_name, e))?;
+    let copied = try_join(
+        log_binder(
+            pods.clone(),
+            &pod_name,
+            JUDGER_CONTAINER_NAME.into(),
+            SOLVER_CONTAINER_NAME.into(),
+        ),
+        log_binder(
+            pods.clone(),
+            &pod_name,
+            SOLVER_CONTAINER_NAME.into(),
+            JUDGER_CONTAINER_NAME.into(),
+        ),
+    )
+    .await?;
 
-    info!("{} Attached", job_name);
-    if let (Some(mut judged_in), Some(mut judged_out), Some(mut judger_in), Some(mut judger_out)) = (
-        solver.stdin(),
-        solver.stdout(),
-        judger.stdin(),
-        judger.stdout(),
-    ) {
-        info!("{} copying stdin & stdout", job_name);
-
-        // TODO!: use copy instead of logged_copy
-        // FIXME!: Cannot copy their stdin & stdout, use pod log instead of attach stdout.
-        let copied = try_join(
-            logged_copy(&mut judged_out, &mut judger_in),
-            logged_copy(&mut judger_out, &mut judged_in),
-        )
-        .await?;
-        info!(
-            "{} io_binder copy complete: copied {:?} byte",
-            job_name, copied
-        );
-        join!(solver, judger);
-        Ok(())
-    } else {
-        let err = JudgeError::IOBindingFail { job_name, pod_name };
-        error!("{}", err);
-        Err(err)
-    }
+    info!("{} copied {:?} bytes", pod_name, copied);
+    Ok(())
 }
 
-fn attach_param(container_name: &str) -> AttachParams {
-    AttachParams {
-        container: Some(container_name.into()),
+async fn log_binder(
+    pods: Api<Pod>,
+    pod_name: &String,
+    from: String,
+    to: String,
+) -> Result<u64, JudgeError> {
+    let log_param = LogParams {
+        container: Some(from.clone()),
+        follow: true,
+        pretty: false,
+
+        ..Default::default()
+    };
+    let attach_param = AttachParams {
+        container: Some(to.clone()),
         stdin: true,
-        stdout: true,
+        stdout: false,
         stderr: false,
         tty: false,
 
-        // max_stdin_buf_size: Some(0),
-        // max_stdout_buf_size: Some(0),
         ..Default::default()
-    }
-}
+    };
 
-#[warn(dead_code)]
-async fn logged_copy<'a, R, W>(reader: &'a mut R, writer: &'a mut W) -> io::Result<usize>
-where
-    R: AsyncRead + Unpin,
-    W: AsyncWrite + Unpin,
-{
-    let mut buf = [0; 5];
-    let mut copied = 0;
+    let log_stream = pods.log_stream(pod_name, &log_param);
+    let attach_pod = pods.attach(pod_name, &attach_param);
 
-    // use timeout to output an log
-    while let Ok(size) = reader.read(&mut buf).await {
-        if size == 0 {
-            warn!("copied 0 byte,unknown reason");
-            break;
-        }
-        copied += size;
-        info!("copied: {}", String::from_utf8_lossy(&buf));
-        let _ = writer.write_all(&buf[..size]).await;
-    }
-    warn!("copy complete");
+    info!("{} pod {} -> {} attaching & logging", pod_name, from, to);
+    let (log_stream, mut attach_pod) = try_join(log_stream, attach_pod).await.inspect_err(|e| {
+        error!(
+            "{} pod {} -> {} attach/log error: {}",
+            pod_name, from, to, e
+        )
+    })?;
+
+    info!("{} pod {} -> {} attached, coping", pod_name, from, to);
+    let mut stdin = attach_pod.stdin().unwrap();
+    let mut log_stream = log_stream
+        .take_while(|it| ready(it.is_ok()))
+        .filter_map(|it| ready(it.ok()))
+        .map(Ok)
+        .into_async_read()
+        .compat();
+
+    let copied = copy(&mut log_stream, &mut stdin)
+        .await
+        .inspect_err(|e| error!("{} pod {} -> {} copy error: {}", pod_name, from, to, e))?;
 
     Ok(copied)
 }

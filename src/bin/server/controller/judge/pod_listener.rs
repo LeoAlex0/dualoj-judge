@@ -12,9 +12,22 @@ use kube::{
 use log::{error, info, warn};
 use tokio::{join, task};
 
+use super::SOLVER_CONTAINER_NAME;
+
 pub struct ListenPodResult {
-    pub pod_create: oneshot::Receiver<Pod>,
-    pub pod_end: oneshot::Receiver<()>,
+    /// sending pod when when pod running
+    pub pod_running: oneshot::Receiver<Pod>,
+    /// send when pod ended (Failed/Succeeded)
+    pub pod_ended: oneshot::Receiver<Option<SolverStopReason>>,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum SolverStopReason {
+    Completed,
+    OOMKilled,
+    Error,
+
+    Other,
 }
 
 pub async fn pod_listener(
@@ -38,37 +51,45 @@ pub async fn pod_listener(
         while let Some(Ok(event)) = result.next().await {
             let mut run = tx_mul_start.clone();
             let mut end = tx_mul_end.clone();
-            let delete = async move { end.send(()).await };
+            let delete = |reason: Option<SolverStopReason>| async move { end.send(reason).await };
             let running = |pod: Pod| async move { run.send(pod).await };
             match event {
                 WatchEvent::Added(pod) => {
                     info!("{} pod created", pod.name());
                 }
                 WatchEvent::Modified(pod) => {
-                    if let Some(phase) = pod.status.clone().unwrap().phase {
-                        info!("{} current phase: {}", pod.name(), phase);
-                    }
+                    info!("{} current phase: {}", pod.name(), phase(&pod));
                     match phase(&pod).as_str() {
                         "Running" => {
-                            task::spawn(running(pod));
+                            task::spawn(running(pod.clone()));
                         }
                         "Failed" => {
-                            task::spawn(delete);
+                            task::spawn(delete(solver_exit_reason(&pod)));
+                            break;
                         }
                         "Succeeded" => {
-                            task::spawn(delete);
+                            task::spawn(delete(solver_exit_reason(&pod)));
+                            break;
                         }
                         _ => {}
                     };
+                    if let Some(reason) = solver_exit_reason(&pod) {
+                        // Judger may need some time to judge solver's output, so no reason to delete pod.
+                        if reason != SolverStopReason::Completed {
+                            info!("{} solver exited abnormal", pod.name());
+                            task::spawn(delete(Some(reason)));
+                            break;
+                        }
+                    }
                 }
-                WatchEvent::Deleted(p) => {
-                    info!("{} deleted. send delete signal", p.name());
-                    task::spawn(delete);
+                WatchEvent::Deleted(pod) => {
+                    info!("{} deleted. send delete signal", pod.name());
+                    task::spawn(delete(solver_exit_reason(&pod)));
                     break;
                 }
                 WatchEvent::Error(e) => {
                     error!("Error occured, send delete signal: {}", e.to_string());
-                    task::spawn(delete);
+                    task::spawn(delete(None));
                     break;
                 }
                 _ => {}
@@ -84,8 +105,8 @@ pub async fn pod_listener(
         canceller.abort();
     });
     Ok(ListenPodResult {
-        pod_create: rx_start,
-        pod_end: rx_end,
+        pod_running: rx_start,
+        pod_ended: rx_end,
     })
 }
 
@@ -102,5 +123,28 @@ fn phase(pod: &Pod) -> String {
         s.phase.clone().unwrap_or_default()
     } else {
         String::new()
+    }
+}
+
+fn solver_exit_reason(pod: &Pod) -> Option<SolverStopReason> {
+    let solver_terminated_state = pod
+        .status
+        .clone()?
+        .container_statuses?
+        .into_iter()
+        .filter(|x| x.name == SOLVER_CONTAINER_NAME)
+        .collect::<Vec<_>>()
+        .pop()?
+        .state?
+        .terminated?;
+
+    match solver_terminated_state.reason {
+        Some(reason) => match reason.as_str() {
+            "Completed" => Some(SolverStopReason::Completed),
+            "OOMKilled" => Some(SolverStopReason::OOMKilled),
+            "Error" => Some(SolverStopReason::Error),
+            _ => Some(SolverStopReason::Other),
+        },
+        _ => Some(SolverStopReason::Other),
     }
 }

@@ -16,4 +16,4 @@ RUN cargo install --path . --root /
 
 FROM docker.io/library/alpine:3.13
 COPY --from=build /bin/a-plus-b-judger /bin
-ENTRYPOINT [ "a-plus-b-judger" ]
+CMD [ "a-plus-b-judger" ]

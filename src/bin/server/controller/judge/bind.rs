@@ -6,14 +6,11 @@ use kube::{
     api::{AttachParams, LogParams, Meta},
     Api,
 };
-use log::{error, info};
+use log::{error, info, warn};
 use tokio::io::copy;
 use tokio_util::compat::FuturesAsyncReadCompatExt;
 
-use crate::controller::judge::{
-    error::{JudgeError, ResultInspectErr},
-    JUDGER_CONTAINER_NAME, SOLVER_CONTAINER_NAME,
-};
+use crate::controller::judge::{error::JudgeError, JUDGER_CONTAINER_NAME, SOLVER_CONTAINER_NAME};
 
 /// Bind pods' stdin & stdout of judger & solver
 pub async fn bind_io(pods: Api<Pod>, pod: Pod) -> Result<(), JudgeError> {
@@ -68,11 +65,10 @@ async fn log_binder(
     let attach_pod = pods.attach(pod_name, &attach_param);
 
     info!("{} pod {} -> {} attaching & logging", pod_name, from, to);
-    let (log_stream, mut attach_pod) = try_join(log_stream, attach_pod).await.inspect_err(|e| {
-        error!(
-            "{} pod {} -> {} attach/log error: {}",
-            pod_name, from, to, e
-        )
+    let (log_stream, mut attach_pod) = try_join(log_stream, attach_pod).await.map_err(|e| {
+        let msg = format!("{} -> {} attach/log error: {}", from, to, e);
+        error!("{} pod {}", pod_name, msg);
+        JudgeError::Log(msg)
     })?;
 
     info!("{} pod {} -> {} attached, coping", pod_name, from, to);
@@ -84,9 +80,11 @@ async fn log_binder(
         .into_async_read()
         .compat();
 
-    let copied = copy(&mut log_stream, &mut stdin)
-        .await
-        .inspect_err(|e| error!("{} pod {} -> {} copy error: {}", pod_name, from, to, e))?;
+    let copied = copy(&mut log_stream, &mut stdin).await.map_err(|e| {
+        let msg = format!("{} -> {} closed: {}", from, to, e);
+        warn!("{} pod {}", pod_name, msg);
+        JudgeError::Log(msg)
+    })?;
 
     Ok(copied)
 }

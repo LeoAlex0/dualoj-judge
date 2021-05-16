@@ -25,7 +25,7 @@ use super::{
     error::wrap_error,
     judger::{set_judge_server, JudgeIO},
     manifest::judge_pod,
-    pod_listener::pod_listener,
+    pod_listener::{pod_listener, SolverStopReason},
 };
 
 pub(crate) struct Judge {
@@ -136,6 +136,20 @@ impl Judge {
         })
     }
 
+    fn on_killed(&self, reason: Option<SolverStopReason>) -> JoinHandle<()> {
+        let mut transfer = self.transfer.clone();
+        info!("{} exit reason: {:?}", self.pod_data.name(), reason);
+        task::spawn(async move {
+            let mut exit_msg = JobExitMsg::default();
+            if reason == Some(SolverStopReason::OOMKilled) {
+                exit_msg.set_judge_code(Code::MemoryLimitExceeded);
+            } else {
+                exit_msg.set_judge_code(Code::RuntimeError);
+            }
+            transfer.send(Event::Exit(exit_msg)).await.unwrap();
+        })
+    }
+
     fn on_receive(&self, result: TestResult) -> JoinHandle<()> {
         let mut trans = self.transfer.clone();
         task::spawn(async move {
@@ -167,6 +181,9 @@ impl Judge {
         for handle in self.handlers {
             handle.abort();
         }
+        if let Some(canceller) = self.server_canceller {
+            let _ = canceller.send(());
+        }
         let name = self.pod_data.name();
         info!("{} deleting pod", name);
         let _ = pod_api.delete(&name, &DeleteParams::default()).await;
@@ -174,7 +191,7 @@ impl Judge {
     }
 
     async fn invoke_inner(&mut self) -> Option<()> {
-        if let Some(option) = wrap_error(
+        if let Some(signals) = wrap_error(
             self.transfer.clone(),
             pod_listener(self.pod_api.clone(), &self.secure.judge_id),
         )
@@ -196,27 +213,27 @@ impl Judge {
             self.handlers.push(handler);
 
             info!("{} waiting for pod running", self.secure.judge_id);
-            select! {
-                Ok(pod_cur) = option.pod_create => {
-                    self.pod_data = pod_cur;
-                    info!("{} pod running", self.secure.judge_id);
+            if let Ok(pod_cur) = signals.pod_running.await {
+                self.pod_data = pod_cur;
+                info!("{} pod running", self.secure.judge_id);
 
-                    let handler = self.on_running();
-                    self.handlers.push(handler);
+                let handler = self.on_running();
+                self.handlers.push(handler);
 
-                    let on_receive = self.on_receive.take()?;
-                    select! {
-                        _ = tokio::time::sleep(self.ttl)=>{
-                            let canceller = self.server_canceller.take()?;
-                            let _ = canceller.send(());
-                            let _ = self.on_timeout().await;
-                        },
-                        Ok(result) = on_receive => {
-                            let _ = self.on_receive(result).await;
-                        },
-                    }
+                let on_receive = self.on_receive.take()?;
+                select! {
+                    _ = tokio::time::sleep(self.ttl) => {
+                        let canceller = self.server_canceller.take()?;
+                        let _ = canceller.send(());
+                        let _ = self.on_timeout().await;
+                    },
+                    Ok(reason) = signals.pod_ended => {
+                        let _ = self.on_killed(reason).await;
+                    },
+                    Ok(result) = on_receive => {
+                        let _ = self.on_receive(result).await;
+                    },
                 }
-                _ = option.pod_end => {}
             }
         }
         Some(())

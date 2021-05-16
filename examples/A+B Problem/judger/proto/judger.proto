@@ -3,33 +3,35 @@ syntax = "proto2";
 package dualoj.judger;
 
 enum TestCode {
-  Accepted = 1;
-  WrongAnswer = 2;
-  Other = 255;
+    Accepted    = 1;
+    WrongAnswer = 2;
+    Other       = 255;
 }
 
 message TestResult {
-  optional string OtherMsg = 254;
-  required TestCode Code = 255;
+    optional string   OtherMsg = 254;
+    required TestCode Code     = 255;
 }
 
 message JudgerRequest {
-  // from EnvVar "JUDGE_ID"
-  required string JudgeID = 1;
-  // from EnvVar "APIKEY"
-  required string ApiKey = 2;
-  required TestResult Result = 255;
+    // from EnvVar "JUDGE_ID"
+    required string JudgeID = 1;
+    // from EnvVar "APIKEY"
+    required string     ApiKey = 2;
+    required TestResult Result = 255;
 }
 
 message JudgerResponse {
-  enum JudgerStatus {
-    Ok = 1;
-    InvalidName = 2;
-    InvalidAuth = 3;
-    Other = 255;
-  }
-  required JudgerStatus Status = 1;
+    enum JudgerStatus {
+        Ok          = 1;
+        InvalidName = 2;
+        InvalidAuth = 3;
+        Other       = 255;
+    }
+    required JudgerStatus Status = 1;
 }
 
 // Connect to ${JUDGER_ADDR} for posting result.
-service Judger { rpc PostTestResult(JudgerRequest) returns (JudgerResponse); }
+service Judger {
+    rpc PostTestResult( JudgerRequest ) returns ( JudgerResponse );
+}

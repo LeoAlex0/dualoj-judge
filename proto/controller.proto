@@ -5,81 +5,84 @@ package dualoj.controller;
 message Chunk { required bytes Content = 1; }
 
 enum StatusCode {
-  Unknown = 0;
-  Ok = 1;
-  Failed = 2;
+    Unknown = 0;
+    Ok      = 1;
+    Failed  = 2;
 }
 
 message UploadStatus {
-  oneof Result {
-    string ErrorMsg = 1;
-    UUID FolderID = 2;
-  }
-  required StatusCode Code = 255;
+    oneof Result {
+        string ErrorMsg = 1;
+        UUID   FolderID = 2;
+    }
+    required StatusCode Code = 255;
 }
 
 message EchoMsg { required string Message = 1; }
 
 message UUID { required bytes Data = 1; }
 message BuildMsg {
-  oneof MsgOrReturn {
-    string Stdout = 1;
-    string Stderr = 2;
-    StatusCode Code = 255;
-  }
+    oneof MsgOrReturn {
+        string     Stdout = 1;
+        string     Stderr = 2;
+        StatusCode Code   = 255;
+    }
 }
 
 message NewJobResponse {
-  oneof Result {
-    string ErrorMsg = 1;
-    UUID JobUID = 2;
-  }
-  required StatusCode Code = 255;
+    oneof Result {
+        string ErrorMsg = 1;
+        UUID   JobUID   = 2;
+    }
+    required StatusCode Code = 255;
 }
 
 message JudgeLimit {
-  // CPU limit (in mili-cpu)
-  required uint32 CPU = 1;
-  // Memory Limit (in MiB)
-  required uint32 Memory = 2;
-  // TimeLimit (in second)
-  required uint32 Time = 3;
+    // CPU limit (in mili-cpu)
+    required uint32 CPU = 1;
+    // Memory Limit (in MiB)
+    required uint32 Memory = 2;
+    // TimeLimit (in second)
+    required uint32 Time = 3;
 }
 
 message JudgeRequest {
-  required UUID Judged = 1;
-  required UUID Judger = 2;
-  required JudgeLimit Limit = 3;
+    required UUID       Judged = 1;
+    required UUID       Judger = 2;
+    required JudgeLimit Limit  = 3;
 }
 
 message JobCreatedMsg { required string JobUID = 1; }
 message JobExitMsg {
-  enum Code {
-    Accepted = 1;
-    WrongAnswer = 2;
-    TimeLimitExceeded = 3;
-    RuntimeError = 4;
-    Abort = 128;
-    Other = 255;
-  };
-  required Code JudgeCode = 255;
-  optional string OtherMsg = 1;
+    enum Code {
+        Accepted    = 1;
+        WrongAnswer = 2;
+
+        MemoryLimitExceeded = 125;
+        TimeLimitExceeded   = 126;
+        RuntimeError        = 127;
+        Abort               = 128;
+
+        Other = 255;
+    };
+    required Code   JudgeCode = 255;
+    optional string OtherMsg  = 1;
 }
 message JobErrorMsg { required string Msg = 1; }
 
 message JudgeEvent {
-  oneof Event {
-    JobCreatedMsg Created = 1;
-    JobExitMsg Exit = 254;
-    JobErrorMsg Error = 255;
-  }
+    oneof Event {
+        JobCreatedMsg Created = 1;
+        JobExitMsg    Exit    = 254;
+        JobErrorMsg   Error   = 255;
+    }
 }
 
 service Controller {
-  rpc UploadArchive(stream Chunk) returns (UploadStatus);
-  rpc Echo(EchoMsg) returns (EchoMsg);
-  rpc Build(UUID) returns (stream BuildMsg);
-  // Just For Test Internal Registry & K8s
-  rpc NewJob(UUID) returns (NewJobResponse);
-  rpc Judge(JudgeRequest) returns (stream JudgeEvent);
+    rpc UploadArchive( stream Chunk ) returns ( UploadStatus );
+    rpc Echo( EchoMsg ) returns ( EchoMsg );
+    rpc Build( UUID ) returns ( stream BuildMsg );
+    // Just For Test Internal Registry & K8s
+    rpc NewJob( UUID ) returns ( NewJobResponse );
+    rpc Judge( JudgeRequest ) returns ( stream JudgeEvent );
 }

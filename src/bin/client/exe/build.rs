@@ -1,3 +1,5 @@
+use std::process::exit;
+
 use dualoj_judge::proto::{build_msg::MsgOrReturn, BuildMsg, Uuid};
 
 use crate::cli::commands::BuildParam;
@@ -20,7 +22,10 @@ impl Client {
         while let Some(BuildMsg { msg_or_return }) = resp.message().await? {
             match msg_or_return {
                 None => println!("None MSG"),
-                Some(MsgOrReturn::Code(code)) => println!("`buildctl` exited, code: {}", code),
+                Some(MsgOrReturn::Code(code)) => {
+                    println!("`buildctl` exited, code: {}", code);
+                    exit(code);
+                }
                 Some(MsgOrReturn::Stdout(line)) => println!("{}", line),
                 Some(MsgOrReturn::Stderr(line)) => eprintln!("{}", line),
             }

@@ -45,6 +45,7 @@ where
 #[derive(Debug)]
 pub enum JudgeError {
     KubeError(kube::Error),
+    Log(String),
     Timeout(Elapsed),
     IOError(std::io::Error),
     Canceled(Canceled),
@@ -57,6 +58,7 @@ impl Display for JudgeError {
             Self::Timeout(e) => e.fmt(f),
             Self::IOError(e) => e.fmt(f),
             Self::Canceled(e) => e.fmt(f),
+            JudgeError::Log(e) => e.fmt(f),
         }
     }
 }

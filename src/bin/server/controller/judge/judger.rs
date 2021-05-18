@@ -23,9 +23,8 @@ pub(crate) async fn set_judge_server(
         .send(JudgeMsg {
             name: judge_id,
             api_key,
-            ttl: None,
             on_success: io.on_receive,
-            cancel: Some(io.canceller),
+            cancel: io.canceller,
         })
         .await
         .unwrap();

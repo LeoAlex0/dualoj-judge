@@ -1,11 +1,11 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc};
 
 use dualoj_judge::proto::judger::{
     judger_response::JudgerStatus, judger_server::Judger, JudgerRequest, JudgerResponse, TestResult,
 };
 use futures::{
     channel::{mpsc, oneshot},
-    FutureExt, StreamExt,
+    StreamExt,
 };
 use log::{error, info, warn};
 use tokio::{sync::Mutex, task};
@@ -14,10 +14,8 @@ use tonic::{Request, Response, Status};
 pub(crate) struct JudgeMsg {
     pub name: String,
     pub api_key: String,
-    /// TTL of registry.
-    pub ttl: Option<Duration>,
     /// Cancel signal, when reached, then delete registry.
-    pub cancel: Option<oneshot::Receiver<()>>,
+    pub cancel: oneshot::Receiver<()>,
     /// When get input from judger, then trigger this.
     pub on_success: oneshot::Sender<TestResult>,
 }
@@ -59,33 +57,17 @@ async fn receive_daemon(
             drop(new_list);
             info!("{} registered", name);
 
-            let name1 = name.clone();
-            let name2 = name.clone();
-            let canceller = || async move {
-                let mut cur_map = cancel_handler.lock().await;
-                cur_map.remove(&name);
-            };
-            let canceller1 = canceller.clone();
-
-            // When TTL reached
-            if let Some(ttl) = msg.ttl {
-                task::spawn(tokio::time::sleep(ttl).then(|_| async move {
-                    warn!("{} TTL reached", name1);
-                    canceller().await;
-                }));
-            }
-
-            if let Some(cancel) = msg.cancel {
-                task::spawn(async move {
-                    let e = cancel.await;
-                    if e.is_ok() {
-                        warn!("{} Cancel reached", name2);
-                        canceller1().await;
-                    } else {
-                        error!("{} cancel canceled", name2);
-                    }
-                });
-            }
+            let cancel = msg.cancel;
+            task::spawn(async move {
+                let e = cancel.await;
+                if e.is_ok() {
+                    warn!("{} cancelled", name);
+                    let mut cur_map = cancel_handler.lock().await;
+                    cur_map.remove(&name);
+                } else {
+                    error!("{} cancel canceled", name);
+                }
+            });
         })
         .await;
 }

@@ -3,7 +3,7 @@ use std::future::ready;
 use futures::{future::try_join, StreamExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{
-    api::{AttachParams, LogParams, Meta},
+    api::{AttachParams, LogParams, ResourceExt},
     Api,
 };
 use log::{error, info, warn};

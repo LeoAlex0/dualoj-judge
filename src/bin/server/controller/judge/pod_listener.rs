@@ -7,7 +7,7 @@ use futures::{
 };
 use k8s_openapi::api::core::v1::Pod;
 use kube::{
-    api::{ListParams, Meta, WatchEvent},
+    api::{ListParams, ResourceExt, WatchEvent},
     Api,
 };
 use log::{error, info, warn};
@@ -52,7 +52,9 @@ pub async fn pod_listener(
 
     let mut result = pod_api
         .watch(
-            &ListParams::default().labels(&format!("judge-id={}", judge_id)),
+            &ListParams::default()
+                .labels(&format!("judge-id={}", judge_id))
+                .disable_bookmarks(),
             "0",
         )
         .await?

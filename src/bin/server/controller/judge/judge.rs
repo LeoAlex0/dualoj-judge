@@ -15,10 +15,7 @@ use futures::{
     FutureExt, SinkExt,
 };
 use k8s_openapi::api::core::v1::Pod;
-use kube::{
-    api::{DeleteParams, Meta, PostParams},
-    Api,
-};
+use kube::{Api, api::{DeleteParams, PostParams, ResourceExt}};
 use log::{error, info};
 use tokio::{
     select,

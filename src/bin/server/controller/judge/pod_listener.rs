@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use futures::{
     channel::{mpsc, oneshot},
+    future::join,
     SinkExt, StreamExt,
 };
 use k8s_openapi::api::core::v1::Pod;
@@ -10,7 +11,7 @@ use kube::{
     Api,
 };
 use log::{error, info, warn};
-use tokio::{join, task};
+use tokio::task;
 
 use super::SOLVER_CONTAINER_NAME;
 
@@ -19,6 +20,9 @@ pub struct ListenPodResult {
     pub pod_running: oneshot::Receiver<Pod>,
     /// send when pod ended (Failed/Succeeded)
     pub pod_ended: oneshot::Receiver<Option<SolverStopReason>>,
+
+    /// send when listen error (Dead before Running)
+    pub listen_error: oneshot::Receiver<ListenStopReason>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -30,12 +34,19 @@ pub enum SolverStopReason {
     Other,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum ListenStopReason {
+    ImagePullBackOff,
+    Error,
+}
+
 pub async fn pod_listener(
     pod_api: Api<Pod>,
     judge_id: &str,
 ) -> Result<ListenPodResult, kube::Error> {
     let (tx_start, rx_start) = oneshot::channel();
     let (tx_end, rx_end) = oneshot::channel();
+    let (tx_error, rx_error) = oneshot::channel();
     let (tx_mul_start, rx_mul_start) = mpsc::channel(1);
     let (tx_mul_end, rx_mul_end) = mpsc::channel(1);
 
@@ -81,6 +92,11 @@ pub async fn pod_listener(
                             break;
                         }
                     }
+                    if is_pull_image_error(&pod) {
+                        error!("{} ImagePullOff", pod.name());
+                        let _ = tx_error.send(ListenStopReason::ImagePullBackOff);
+                        break;
+                    }
                 }
                 WatchEvent::Deleted(pod) => {
                     info!("{} deleted. send delete signal", pod.name());
@@ -89,7 +105,7 @@ pub async fn pod_listener(
                 }
                 WatchEvent::Error(e) => {
                     error!("Error occured, send delete signal: {}", e.to_string());
-                    task::spawn(delete(None));
+                    let _ = tx_error.send(ListenStopReason::Error);
                     break;
                 }
                 _ => {}
@@ -98,15 +114,17 @@ pub async fn pod_listener(
     });
 
     task::spawn(async move {
-        join!(
+        join(
             forward_first(tx_start, rx_mul_start),
             forward_first(tx_end, rx_mul_end),
-        );
+        )
+        .await;
         canceller.abort();
     });
     Ok(ListenPodResult {
         pod_running: rx_start,
         pod_ended: rx_end,
+        listen_error: rx_error,
     })
 }
 
@@ -146,5 +164,24 @@ fn solver_exit_reason(pod: &Pod) -> Option<SolverStopReason> {
             _ => Some(SolverStopReason::Other),
         },
         _ => Some(SolverStopReason::Other),
+    }
+}
+
+fn is_pull_image_error(pod: &Pod) -> bool {
+    let container_status = pod.status.clone().unwrap().container_statuses;
+
+    if let Some(status) = container_status {
+        status.into_iter().any(|s| {
+            s.state
+                .map(|x| {
+                    x.waiting
+                        .map(|wait| wait.reason.map(|reason| reason == "ImagePullBackOff"))
+                })
+                .flatten()
+                .flatten()
+                .unwrap_or(false)
+        })
+    } else {
+        false
     }
 }

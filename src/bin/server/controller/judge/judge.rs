@@ -1,9 +1,13 @@
 use std::{net::SocketAddr, option::Option, time::Duration};
 
-use crate::{cli::pod_env, controller::judge::bind::bind_io, judge_server::JudgeMsg};
+use crate::{
+    cli::pod_env,
+    controller::judge::{bind::bind_io, pod_listener::ListenStopReason},
+    judge_server::JudgeMsg,
+};
 use dualoj_judge::proto::{
-    job_exit_msg::Code, judge_event::Event, judger::TestResult, JobCreatedMsg, JobExitMsg,
-    JudgeLimit,
+    job_exit_msg::Code, judge_event::Event, judger::TestResult, JobCreatedMsg, JobErrorMsg,
+    JobExitMsg, JudgeLimit,
 };
 use futures::{
     channel::{mpsc::Sender, oneshot},
@@ -15,7 +19,7 @@ use kube::{
     api::{DeleteParams, Meta, PostParams},
     Api,
 };
-use log::info;
+use log::{error, info};
 use tokio::{
     select,
     task::{self, JoinHandle},
@@ -139,6 +143,7 @@ impl Judge {
     fn on_killed(&self, reason: Option<SolverStopReason>) -> JoinHandle<()> {
         let mut transfer = self.transfer.clone();
         info!("{} exit reason: {:?}", self.pod_data.name(), reason);
+
         task::spawn(async move {
             let mut exit_msg = JobExitMsg::default();
             if reason == Some(SolverStopReason::OOMKilled) {
@@ -147,6 +152,26 @@ impl Judge {
                 exit_msg.set_judge_code(Code::RuntimeError);
             }
             transfer.send(Event::Exit(exit_msg)).await.unwrap();
+        })
+    }
+
+    fn on_error(&self, reason: ListenStopReason) -> JoinHandle<()> {
+        let mut transfer = self.transfer.clone();
+        error!(
+            "{} error: exit before running: {:?}",
+            self.pod_data.name(),
+            reason
+        );
+
+        task::spawn(async move {
+            let mut error_msg = JobErrorMsg::default();
+            use ListenStopReason::*;
+
+            match reason {
+                ImagePullBackOff => error_msg.msg = "ImagePullBackOff".into(),
+                Error => error_msg.msg = "Listen error".into(),
+            }
+            transfer.send(Event::Error(error_msg)).await.unwrap();
         })
     }
 
@@ -213,26 +238,32 @@ impl Judge {
             self.handlers.push(handler);
 
             info!("{} waiting for pod running", self.secure.judge_id);
-            if let Ok(pod_cur) = signals.pod_running.await {
-                self.pod_data = pod_cur;
-                info!("{} pod running", self.secure.judge_id);
 
-                let handler = self.on_running();
-                self.handlers.push(handler);
+            select! {
+                Ok(pod_cur) = signals.pod_running => {
+                    self.pod_data = pod_cur;
+                    info!("{} pod running", self.secure.judge_id);
 
-                let on_receive = self.on_receive.take()?;
-                select! {
-                    _ = tokio::time::sleep(self.ttl) => {
-                        let canceller = self.server_canceller.take()?;
-                        let _ = canceller.send(());
-                        let _ = self.on_timeout().await;
-                    },
-                    Ok(reason) = signals.pod_ended => {
-                        let _ = self.on_killed(reason).await;
-                    },
-                    Ok(result) = on_receive => {
-                        let _ = self.on_receive(result).await;
-                    },
+                    let handler = self.on_running();
+                    self.handlers.push(handler);
+
+                    let on_receive = self.on_receive.take()?;
+                    select! {
+                        _ = tokio::time::sleep(self.ttl) => {
+                            let canceller = self.server_canceller.take()?;
+                            let _ = canceller.send(());
+                            let _ = self.on_timeout().await;
+                        },
+                        Ok(reason) = signals.pod_ended => {
+                            let _ = self.on_killed(reason).await;
+                        },
+                        Ok(result) = on_receive => {
+                            let _ = self.on_receive(result).await;
+                        },
+                    }
+                },
+                Ok(reason) = signals.listen_error => {
+                    let _ = self.on_error(reason).await;
                 }
             }
         }

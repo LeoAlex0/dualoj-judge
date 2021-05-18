@@ -14,9 +14,9 @@ use tonic::{Request, Response, Status};
 pub(crate) struct JudgeMsg {
     pub judge_id: String,
     pub api_key: String,
-    /// Cancel signal, when reached, then delete registry.
+    /// Cancel signal, when reached, delete registry.
     pub cancel: oneshot::Receiver<()>,
-    /// When get input from judger, then trigger this.
+    /// When get input from judger, trigger this.
     pub on_success: oneshot::Sender<TestResult>,
 }
 

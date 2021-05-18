@@ -26,7 +26,6 @@ pub(crate) fn judge_pod(env: &JudgeEnv, secure: &JudgeSecure, param: &JudgePodPa
                 labels
             }),
             generate_name: Some("judged".into()),
-            // name: Some(judged.to_string()),
             owner_references: Some(vec![OwnerReference {
                 api_version: "v1".into(),
                 controller: Some(true),

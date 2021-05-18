@@ -12,7 +12,7 @@ use tokio::{sync::Mutex, task};
 use tonic::{Request, Response, Status};
 
 pub(crate) struct JudgeMsg {
-    pub name: String,
+    pub judge_id: String,
     pub api_key: String,
     /// Cancel signal, when reached, then delete registry.
     pub cancel: oneshot::Receiver<()>,
@@ -44,11 +44,11 @@ async fn receive_daemon(
     request_receiver
         .for_each(|msg| async {
             let cancel_handler = job_list.clone();
-            let name = msg.name.clone();
+            let name = msg.judge_id.clone();
 
             let mut new_list = job_list.lock().await;
             new_list.insert(
-                msg.name,
+                msg.judge_id,
                 Key {
                     api_key: msg.api_key,
                     signal_sender: msg.on_success,

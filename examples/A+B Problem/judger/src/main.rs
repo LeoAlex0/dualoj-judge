@@ -1,6 +1,7 @@
-use std::{env::var, process::exit};
+use std::{env::var, process::exit, sync::Arc, thread::spawn};
 
 use a_plus_b_judger::pb::{self, judger_client::JudgerClient, JudgerRequest, TestCode, TestResult};
+use rand::random;
 use tokio::io::{AsyncBufReadExt, BufReader};
 
 #[tokio::main]
@@ -8,11 +9,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut client = ResultPoster::default().await;
     let mut buf_stdin = BufReader::new(tokio::io::stdin());
 
+    let mut input_data = Vec::new();
     for _ in 0..5000 {
-        let a = rand::random::<u32>() >> 1;
-        let b = rand::random::<u32>() >> 1;
-        println!("{} {}", a, b);
+        input_data.push((random::<u32>() / 2, random::<u32>() / 2))
+    }
+    let data_out = Arc::new(input_data);
+    let data_in = data_out.clone();
 
+    spawn(move || {
+        data_out.iter().for_each(|(a, b)| println!("{} {}", a, b));
+    });
+
+    for (a, b) in data_in.iter() {
         let mut line = String::new();
         while line.trim() == "" {
             buf_stdin.read_line(&mut line).await?;
@@ -72,11 +80,7 @@ impl ResultPoster {
                     .await
                     .ok()
             {
-                Some(ResultPoster {
-                    client,
-                    id,
-                    apikey,
-                })
+                Some(ResultPoster { client, id, apikey })
             } else {
                 eprintln!("Connect error to {}", connect_addr);
                 None

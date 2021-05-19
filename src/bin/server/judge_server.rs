@@ -8,7 +8,10 @@ use futures::{
     StreamExt,
 };
 use log::{error, info, warn};
-use tokio::{sync::Mutex, task};
+use tokio::{
+    sync::Mutex,
+    task::{self, JoinHandle},
+};
 use tonic::{Request, Response, Status};
 
 pub(crate) struct JudgeMsg {
@@ -27,13 +30,22 @@ struct Key {
 
 pub(crate) struct JudgeServer {
     job_list: Arc<Mutex<HashMap<String, Key>>>,
+    daemon_handler: JoinHandle<()>,
 }
 
 impl JudgeServer {
     pub fn new(receive: mpsc::Receiver<JudgeMsg>) -> Self {
         let job_list = Arc::new(Mutex::new(HashMap::new()));
-        task::spawn(receive_daemon(job_list.clone(), receive));
-        JudgeServer { job_list }
+        JudgeServer {
+            job_list: job_list.clone(),
+            daemon_handler: task::spawn(receive_daemon(job_list, receive)),
+        }
+    }
+}
+
+impl Drop for JudgeServer {
+    fn drop(&mut self) {
+        self.daemon_handler.abort();
     }
 }
 

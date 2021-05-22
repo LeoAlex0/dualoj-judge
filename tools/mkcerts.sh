@@ -26,6 +26,8 @@ mkdir -p ${DIR}/{buildkitd,judger,registry,ingress,client}
   kubectl -n dualoj create secret tls ingress-tls --dry-run=client -o yaml --cert=./ingress/cert.pem --key=./ingress/key.pem >../manifests/01-ingress-tls.yaml
 )
 
-docker cp .cert/rootCA.pem kind-control-plane:/usr/local/share/ca-certificates/custom_ca.crt
+docker cp .cert/rootCA.pem \
+kind-control-plane:/usr/local/share/ca-certificates/custom.crt
+
 docker exec -it kind-control-plane update-ca-certificates
 docker restart kind-control-plane

@@ -56,10 +56,10 @@ spec:
             # To change UID/GID, you need to rebuild the image
             runAsUser: 1000
             runAsGroup: 1000
-          resources:
-            limits:
-              memory: "4Gi"
-              cpu: "2000m"
+          # resources:
+          #   limits:
+          #     memory: "4Gi"
+          #     cpu: "2000m"
           ports:
             - containerPort: 1234
           volumeMounts:

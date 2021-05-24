@@ -1,8 +1,10 @@
 #!/bin/sh -xe
 
-SOLVER_ID=$(cargo run --bin=client -- --addr "grpc://localhost:443" --tls-ca-cert=".cert/client/ca.pem" upload "examples/A+B Problem/$2" --exclude "**/target" --brief)
-JUDGER_ID=$(cargo run --bin=client -- --addr "grpc://localhost:443" --tls-ca-cert=".cert/client/ca.pem" upload "examples/A+B Problem/$1" --exclude "**/target" --brief)
-cargo run --bin=client -- --addr "grpc://localhost:443" --tls-ca-cert=".cert/client/ca.pem" build "${SOLVER_ID}"
-cargo run --bin=client -- --addr "grpc://localhost:443" --tls-ca-cert=".cert/client/ca.pem" build "${JUDGER_ID}"
+ADDR="grpc://workstation:443"
 
-cargo run --bin=client -- --addr "grpc://localhost:443" --tls-ca-cert=".cert/client/ca.pem" judge "${JUDGER_ID}" "${SOLVER_ID}"
+SOLVER_ID=$(cargo run --bin=client -- --addr "${ADDR}" --tls-ca-cert=".cert/client/ca.pem" upload "examples/A+B Problem/$2" --exclude "**/target" --brief)
+JUDGER_ID=$(cargo run --bin=client -- --addr "${ADDR}" --tls-ca-cert=".cert/client/ca.pem" upload "examples/A+B Problem/$1" --exclude "**/target" --brief)
+cargo run --bin=client -- --addr "${ADDR}" --tls-ca-cert=".cert/client/ca.pem" build "${SOLVER_ID}"
+cargo run --bin=client -- --addr "${ADDR}" --tls-ca-cert=".cert/client/ca.pem" build "${JUDGER_ID}"
+
+cargo run --bin=client -- --addr "${ADDR}" --tls-ca-cert=".cert/client/ca.pem" judge --cpu-limit=300 "${JUDGER_ID}" "${SOLVER_ID}"

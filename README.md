@@ -1,26 +1,26 @@
 # DualOJ-Judge
 
-DualOJ-Judge is judger part of DualOJ, basically written with Rust language.
+DualOJ-Judge is the judge module of DualOJ (WIP), basically written in Rust language.
 
-This component **DO NOT** need expose.
+This component **DO NOT** need to be exposed.
 
-## Builder
+## Builder support
 
-Build tester's image & solver's image
+Build `Judger` image & `Solver` image
 
 Some Option should be tested:
 
-- [ ] kaniko
+- [ ] [kaniko](https://github.com/GoogleContainerTools/kaniko)
   - LICENSE: Apache-2.0
   - kaniko is not an officially supported Google product
-- [ ] buildah
-- [x] BuildKit
+- [ ] [buildah](https://github.com/containers/buildah)
+- [x] [BuildKit](https://github.com/moby/buildkit)
 
-## Internal registry
+## Internal registry support
 
 Some Option should be tested:
 
-- [ ] harbor/harbor
-- [x] docker.io/library/registry
+- [ ] [harbor/harbor](https://github.com/goharbor/harbor)
+- [x] [docker.io/library/registry](https://hub.docker.com/_/registry/)
 
 ## Known BUGS

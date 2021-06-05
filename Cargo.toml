@@ -5,6 +5,10 @@ authors = ["zLeoAlex <z.alex.leo@outlook.com>"]
 edition = "2018"
 default-run = "server"
 
+readme = "README.md"
+license = "BSD-3-Clause"
+repository = "https://github.com/LeoAlex0/dualoj-judge"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 kube = { version = "0.53.0", features = ["ws"] }

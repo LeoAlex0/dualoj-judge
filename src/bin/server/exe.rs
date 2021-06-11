@@ -10,7 +10,7 @@ use tokio::{
 };
 use tonic::transport::Server;
 
-use crate::{cli::CLI, controller::ControlService, judge_server::JudgeServer};
+use crate::{console::Console, controller::ControlService, judge_server::JudgeServer};
 use dualoj_judge::proto::{
     controller_server::ControllerServer, judger::judger_server::JudgerServer,
 };
@@ -49,10 +49,10 @@ impl Executor {
     }
 }
 
-impl TryFrom<CLI> for Executor {
+impl TryFrom<Console> for Executor {
     type Error = Box<dyn std::error::Error>;
 
-    fn try_from(value: CLI) -> Result<Self, Self::Error> {
+    fn try_from(value: Console) -> Result<Self, Self::Error> {
         let (tx, rx) = mpsc::channel(5); // TODO!: tuning this buffer size
         let client = block_on(kube::Client::try_default())?;
         let judger_addr = SocketAddr::new(value.pod_env.ip, value.judger_port);
@@ -60,7 +60,7 @@ impl TryFrom<CLI> for Executor {
 
         // TODO!: customized target namespace.
         let job_api = Api::namespaced(client.clone(), &value.pod_env.namespace);
-        let pod_api = Api::namespaced(client.clone(), &value.pod_env.namespace);
+        let pod_api = Api::namespaced(client, &value.pod_env.namespace);
 
         let controller = ControllerServer::new(ControlService {
             archive_size_limit: value.archive_size_limit,

@@ -1,7 +1,7 @@
 mod build;
 mod judge;
 mod new_job;
-mod upload;
+mod receive;
 
 use std::net::SocketAddr;
 
@@ -10,22 +10,17 @@ use k8s_openapi::api::{batch::v1::Job, core::v1::Pod};
 use kube::Api;
 use log::info;
 
-use dualoj_judge::{
-    proto::{
-        controller_server::Controller, BuildMsg, Chunk, EchoMsg, JudgeEvent, UploadStatus, Uuid,
-    },
-    to_internal,
-};
+use dualoj_judge::{proto::{Chunk, EchoMsg, JudgeEvent, UpbuildMsg, Uuid, controller_server::Controller}, to_internal};
 
 use tonic::{Request, Response, Status};
 
-use crate::{cli, judge_server::JudgeMsg};
+use crate::{console, judge_server::JudgeMsg};
 
 pub(crate) struct ControlService {
     pub archive_size_limit: usize,
-    pub registry: cli::registry::Param,
-    pub buildkit: cli::buildkit::Param,
-    pub pod_env: cli::pod_env::Param,
+    pub registry: console::registry::Param,
+    pub buildkit: console::buildkit::Param,
+    pub pod_env: console::pod_env::Param,
     pub judger_addr: SocketAddr,
     pub job_poster: mpsc::Sender<JudgeMsg>,
 
@@ -40,17 +35,14 @@ impl Controller for ControlService {
         Ok(Response::new(request.into_inner()))
     }
 
-    async fn upload_archive(
+    type UpbuildStream = mpsc::UnboundedReceiver<Result<UpbuildMsg, Status>>;
+
+    async fn upbuild(
         &self,
         request: Request<tonic::Streaming<Chunk>>,
-    ) -> Result<Response<UploadStatus>, Status> {
-        self.upload_archive(request).await
-    }
-
-    type BuildStream = mpsc::UnboundedReceiver<Result<BuildMsg, Status>>;
-
-    async fn build(&self, request: Request<Uuid>) -> Result<Response<Self::BuildStream>, Status> {
-        self.build(request).await
+    ) -> Result<Response<Self::UpbuildStream>, Status> {
+        let received = self.receive_archive(request).await?;
+        self.build(received).await
     }
 
     async fn new_job(

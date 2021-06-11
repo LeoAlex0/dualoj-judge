@@ -40,7 +40,7 @@ pub async fn bind_io(pods: Api<Pod>, pod: Pod) -> Result<(), JudgeError> {
 
 async fn log_binder(
     pods: Api<Pod>,
-    pod_name: &String,
+    pod_name: &str,
     from: String,
     to: String,
 ) -> Result<u64, JudgeError> {

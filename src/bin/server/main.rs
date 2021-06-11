@@ -1,4 +1,4 @@
-mod cli;
+mod console;
 mod controller;
 mod exe;
 mod judge_server;
@@ -11,8 +11,7 @@ use structopt::StructOpt;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
 
-    exe::Executor::try_from(cli::CLI::from_args())?
+    exe::Executor::try_from(console::Console::from_args())?
         .serve()
         .await
-        .map_err(|e| e.into())
 }

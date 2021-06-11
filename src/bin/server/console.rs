@@ -4,7 +4,7 @@ pub mod pod_env;
 pub mod registry;
 
 #[derive(StructOpt)]
-pub(crate) struct CLI {
+pub(crate) struct Console {
     /// Size-limit of uploaded archives
     #[structopt(long, default_value = "10000000", env = "SIZE_LIMIT")]
     pub archive_size_limit: usize,

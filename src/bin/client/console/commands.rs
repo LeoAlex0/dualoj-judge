@@ -7,11 +7,8 @@ pub(crate) enum SubCommand {
     /// Echo rpc to check whether server is healthy.
     Echo,
 
-    /// Upload to Build Server
-    Upload(UploadParam),
-
-    /// Build an Docker project through uuid
-    Build(BuildParam),
+    /// Upload & Build
+    Upbuild(UploadParam),
 
     /// New a temporary Job to test the builded image
     NewJob(NewJobParam),

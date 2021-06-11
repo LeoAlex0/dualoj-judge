@@ -1,11 +1,10 @@
-mod build;
 mod echo;
 mod judge;
 mod new_job;
-mod upload;
+mod upbuild;
 
-use crate::cli::commands::SubCommand::*;
-use crate::cli::{commands::SubCommand, CLI};
+use crate::console::commands::SubCommand::*;
+use crate::console::{commands::SubCommand, Console};
 use dualoj_judge::proto::controller_client::ControllerClient;
 use futures::executor::block_on;
 use std::convert::TryFrom;
@@ -24,18 +23,17 @@ impl Executor {
     pub async fn invoke(mut self) -> Result<(), Box<dyn std::error::Error>> {
         match self.command {
             Echo => self.client.echo().await,
-            Upload(param) => self.client.upload(param).await,
-            Build(param) => self.client.build(param).await,
+            Upbuild(param) => self.client.upbuild(param).await,
             NewJob(param) => self.client.new_job(param).await,
             Judge(param) => self.client.judge(param).await,
         }
     }
 }
 
-impl TryFrom<CLI> for Executor {
+impl TryFrom<Console> for Executor {
     type Error = Box<dyn std::error::Error>;
 
-    fn try_from(cli: CLI) -> Result<Self, Self::Error> {
+    fn try_from(cli: Console) -> Result<Self, Self::Error> {
         let mut endpoint = tonic::transport::channel::Channel::from_shared(cli.addr)?;
 
         if let Some(path) = &cli.ca_cert_path {

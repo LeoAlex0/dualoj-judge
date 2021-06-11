@@ -1,19 +1,18 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, process::exit};
 
 use futures::{stream::iter, StreamExt};
 use glob::Pattern;
 use log::{debug, info};
 
-use dualoj_judge::proto::{upload_status, Chunk};
-use uuid::Uuid;
+use dualoj_judge::proto::{self, upbuild_msg::MsgOrReturn, Chunk, UpbuildMsg};
 
 use super::Client;
-use crate::cli::commands::UploadParam;
+use crate::console::commands::UploadParam;
 
 const CHUNK_LEN: usize = 1 << 20; // 1 MiB
 
 impl Client {
-    pub(crate) async fn upload(
+    pub(crate) async fn upbuild(
         &mut self,
         UploadParam {
             path,
@@ -52,9 +51,7 @@ impl Client {
                     debug!("file/directory {} is excluded", ext.display());
                 }
             }
-
             tar.finish()?;
-
             tar.into_inner()?
         };
 
@@ -63,7 +60,7 @@ impl Client {
 
         let response = self
             .raw
-            .upload_archive(
+            .upbuild(
                 iter(data)
                     .chunks(CHUNK_LEN)
                     .zip(iter(0..))
@@ -75,24 +72,34 @@ impl Client {
             .await;
 
         match response {
-            Ok(response) => match &response.get_ref().result {
-                Some(e) => match e {
-                    upload_status::Result::ErrorMsg(msg) => {
-                        eprintln!("{}", msg)
-                    }
-                    upload_status::Result::FolderId(id) => {
-                        if brief {
-                            println!("{}", Uuid::from_slice(&id.data)?)
-                        } else {
-                            println!("upload OK, Folder ID: {}", Uuid::from_slice(&id.data)?)
+            Ok(response) => {
+                let mut response = response.into_inner();
+                while let Some(UpbuildMsg { msg_or_return }) = response.message().await? {
+                    match msg_or_return {
+                        None => println!("None MSG"),
+                        Some(MsgOrReturn::Code(code)) => {
+                            if !brief {
+                                println!("`buildctl` exited, code: {}", code);
+                            }
+                            exit(code);
+                        }
+                        Some(MsgOrReturn::Stdout(line)) => {
+                            if !brief {
+                                println!("{}", line)
+                            }
+                        }
+                        Some(MsgOrReturn::Stderr(line)) => eprintln!("{}", line),
+                        Some(MsgOrReturn::Complete(proto::Uuid { data })) => {
+                            let uid = uuid::Uuid::from_slice(&data)?;
+                            if brief {
+                                println!("{}", &uid)
+                            }
                         }
                     }
-                },
-                None => {}
-            },
+                }
+            }
             Err(e) => eprintln!("Server-side error received: {}", e),
         }
-
         Ok(())
     }
 }

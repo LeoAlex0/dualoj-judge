@@ -8,7 +8,7 @@ use kube::api::ObjectMeta;
 
 use crate::controller::judge::{JUDGER_CONTAINER_NAME, SOLVER_CONTAINER_NAME};
 
-use super::judge::{JudgeEnv, JudgePodParam, JudgeSecure};
+use super::core::{JudgeEnv, JudgePodParam, JudgeSecure};
 
 /// Generate Job for judge.
 pub(crate) fn judge_pod(env: &JudgeEnv, secure: &JudgeSecure, param: &JudgePodParam) -> Pod {

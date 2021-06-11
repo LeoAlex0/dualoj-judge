@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, option::Option, time::Duration};
 
 use crate::{
-    cli::pod_env,
+    console::pod_env,
     controller::judge::{bind::bind_io, pod_listener::ListenStopReason},
     judge_server::JudgeMsg,
 };
@@ -15,7 +15,10 @@ use futures::{
     FutureExt, SinkExt,
 };
 use k8s_openapi::api::core::v1::Pod;
-use kube::{Api, api::{DeleteParams, PostParams, ResourceExt}};
+use kube::{
+    api::{DeleteParams, PostParams, ResourceExt},
+    Api,
+};
 use log::{error, info};
 use tokio::{
     select,
@@ -175,9 +178,10 @@ impl Judge {
     fn on_receive(&self, result: TestResult) -> JoinHandle<()> {
         let mut trans = self.transfer.clone();
         task::spawn(async move {
-            let mut exit_msg = JobExitMsg::default();
-            exit_msg.judge_code = result.code;
-            exit_msg.other_msg = result.other_msg;
+            let exit_msg = JobExitMsg {
+                judge_code: result.code,
+                other_msg: result.other_msg,
+            };
 
             let _ = trans.send(Event::Exit(exit_msg)).await;
         })

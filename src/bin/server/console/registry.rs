@@ -12,7 +12,7 @@ pub(crate) struct Param {
 }
 
 impl Param {
-    pub(crate) fn get_image_url(&self, name: &String) -> String {
+    pub(crate) fn get_image_url(&self, name: &str) -> String {
         format!("{}/{}/{}", self.registry_url, self.username, name)
     }
 }

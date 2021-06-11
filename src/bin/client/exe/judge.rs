@@ -1,7 +1,7 @@
 use dualoj_judge::proto::{self, JudgeLimit, JudgeRequest};
 use proto::judge_event::Event;
 
-use crate::cli::commands::JudgeParam;
+use crate::console::commands::JudgeParam;
 
 use super::Client;
 

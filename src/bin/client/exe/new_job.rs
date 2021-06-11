@@ -1,6 +1,6 @@
 use dualoj_judge::proto::{NewJobResponse, Uuid};
 
-use crate::cli::commands::NewJobParam;
+use crate::console::commands::NewJobParam;
 
 use super::Client;
 

@@ -1,26 +1,22 @@
-use std::{env::temp_dir, future::ready, process::Stdio};
+use std::{future::ready, process::Stdio};
 
 use futures::{channel::mpsc, io::BufReader, AsyncBufReadExt, SinkExt, StreamExt, TryStreamExt};
 use tokio::{process::Command, task};
 use tokio_util::compat::TokioAsyncReadCompatExt;
-use tonic::{Code, Request, Response, Status};
+use tonic::{Response, Status};
 
 use crate::controller::ControlService;
-use dualoj_judge::proto::{build_msg::MsgOrReturn, controller_server::Controller, BuildMsg, Uuid};
+use dualoj_judge::proto::{
+    self, controller_server::Controller, upbuild_msg::MsgOrReturn, UpbuildMsg,
+};
+
+use super::receive::Received;
 
 impl ControlService {
     pub(crate) async fn build(
         &self,
-        request: Request<Uuid>,
-    ) -> Result<Response<<ControlService as Controller>::BuildStream>, Status> {
-        // Get UUID from request.
-        let uuid = uuid::Uuid::from_slice(&request.into_inner().data)
-            .map_err(|e| Status::new(Code::Unavailable, format!("UUID is unavaliable: {}", e)))?;
-
-        // Construct context-dir
-        let mut context_dir = temp_dir();
-        context_dir.push(uuid.to_string());
-
+        Received { dir, hashed_id }: Received,
+    ) -> Result<Response<<ControlService as Controller>::UpbuildStream>, Status> {
         // Execute buildctl to build
         let mut child = Command::new("buildctl")
             .args(&[
@@ -28,11 +24,11 @@ impl ControlService {
                 "--tlsdir=/certs",
                 "build",
                 "--frontend=dockerfile.v0",
-                format!("--local=context={}", context_dir.display()).as_str(),
-                format!("--local=dockerfile={}", context_dir.display()).as_str(),
+                format!("--local=context={}", dir.path().display()).as_str(),
+                format!("--local=dockerfile={}", dir.path().display()).as_str(),
                 format!(
                     "--output=type=image,name={},registry.insecure=true,push=true",
-                    self.registry.get_image_url(&uuid.to_string())
+                    self.registry.get_image_url(&hashed_id.to_string())
                 )
                 .as_str(),
             ])
@@ -41,23 +37,17 @@ impl ControlService {
             .spawn()
             .unwrap();
 
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or(Status::internal("buildkitd stdout cannot piped"))?;
+        let stdout = child.stdout.take().unwrap();
 
-        let stderr = child
-            .stderr
-            .take()
-            .ok_or(Status::internal("buildctl stderr cannot piped"))?;
+        let stderr = child.stderr.take().unwrap();
 
         let stdout_lines = BufReader::new(stdout.compat()).lines().map_ok(|line| {
-            Ok::<_, Status>(BuildMsg {
+            Ok::<_, Status>(UpbuildMsg {
                 msg_or_return: Some(MsgOrReturn::Stdout(line)),
             })
         });
         let stderr_lines = BufReader::new(stderr.compat()).lines().map_ok(|line| {
-            Ok::<_, Status>(BuildMsg {
+            Ok::<_, Status>(UpbuildMsg {
                 msg_or_return: Some(MsgOrReturn::Stderr(line)),
             })
         });
@@ -86,15 +76,25 @@ impl ControlService {
         task::spawn(async move {
             if let Ok(code) = child.wait().await {
                 if let Some(code) = code.code() {
-                    let _ = tx
-                        .send(Ok(BuildMsg {
-                            msg_or_return: Some(MsgOrReturn::Code(code)),
+                    if code == 0 {
+                        let uuid = proto::Uuid {
+                            data: hashed_id.as_bytes().to_vec(),
+                        };
+                        tx.send(Ok(UpbuildMsg {
+                            msg_or_return: Some(MsgOrReturn::Complete(uuid)),
                         }))
-                        .await;
+                        .await
+                        .unwrap();
+                    }
+                    tx.send(Ok(UpbuildMsg {
+                        msg_or_return: Some(MsgOrReturn::Code(code)),
+                    }))
+                    .await
+                    .unwrap();
                 }
             }
         });
 
-        Ok(Response::new(rx))
+        Ok::<_, Status>(Response::new(rx))
     }
 }

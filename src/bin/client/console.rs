@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
-pub(crate) struct CLI {
+pub(crate) struct Console {
     /// Address of server to connect to.
     #[structopt(long = "addr", default_value = "grpcs://localhost:443")]
     pub addr: String,

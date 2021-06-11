@@ -1,11 +1,11 @@
 mod bind;
 mod error;
-mod judge;
+mod core;
 mod judger;
 mod manifest;
 mod pod_listener;
 
-use self::judge::JudgeEnv;
+use self::core::JudgeEnv;
 use super::ControlService;
 use dualoj_judge::proto::{controller_server::Controller, JudgeEvent, JudgeLimit};
 
@@ -27,14 +27,14 @@ impl ControlService {
         let (tx1, rx1) = mpsc::channel(20);
         let (tx2, rx2) = mpsc::channel(20);
 
-        let judge = judge::Judge::new(
+        let judge = core::Judge::new(
             self.pod_api.clone(),
             JudgeEnv {
                 pod_env: self.pod_env.clone(),
-                server_addr: self.judger_addr.clone(),
+                server_addr: self.judger_addr,
             },
             self.job_poster.clone(),
-            tx1.clone(),
+            tx1,
             self.registry.get_image_url(&judged.to_string()),
             self.registry.get_image_url(&judger.to_string()),
             limit,

@@ -12,3 +12,6 @@ manifests/01-registry-ingress.yaml
 
 # Some demo sources
 examples/*_demo.rs
+
+# Packaged binary pack.
+package

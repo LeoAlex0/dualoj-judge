@@ -4,6 +4,45 @@ DualOJ-Judge is the judge module of DualOJ (WIP), basically written in Rust lang
 
 This component **DO NOT** need to be exposed.
 
+## Quick develop guide
+
+### Dependencies
+
+* `kubernetes cluster`, can use kubectl to manage, with an `ingress-controller`.
+  * recommended to use [kind](https://github.com/kubernetes-sigs/kind) to develop.
+* `OpenSSL` or something can be used to generate Self-signed SSL Certifications.
+  * recommended to use [mkcert](https://github.com/FiloSottile/mkcert).
+
+And next steps will consider you using a **recommended** configuration.
+
+### Generate self-signed certification
+
+Cause for using [BuildKit](https://github.com/moby/buildkit) securely, we must
+generate a self-signed certification first.
+
+You can simply do `tools/mkcerts.sh` for this step.
+
+### Build & Load image
+
+For `kind` user, you can easily do `tools/kind-update.sh` for this step.
+
+### Apply manifests
+
+Just `kubectl apply -f ./manifests`.
+
+### Update pod.
+
+So if you complete a new feature or just for test, you can use `tools/kind-update.sh`
+to build and update using changed new sources.
+
+(`kind` cluster only)
+
+### Interface debug
+
+If you need to invoke some commands, you can use `cargo run --bin=client` to run a client.
+
+And you may need to add `--tls-ca-cert=".cert/client/ca.pem"` flag to trust CA Certificate generated above.
+
 ## Builder support
 
 Build `Judger` image & `Solver` image

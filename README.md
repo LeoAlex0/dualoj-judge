@@ -2,7 +2,17 @@
 
 DualOJ-Judge is the judge module of DualOJ (WIP), basically written in Rust language.
 
-This component **DO NOT** need to be exposed.
+WARNING:
+* This component **DO NOT** need to be exposed.
+* This project are still Work In Progress.
+
+## Introduction & final goal
+
+This module can make DualOJ able to let problem-solvers & judgers to use `Dockerfile`
+customize environment and dependencies.
+
+This means it is no longer necessary to use some extreme methods
+to optimize performance in most case, or copy & paste code for reusing.
 
 ## Quick develop guide
 

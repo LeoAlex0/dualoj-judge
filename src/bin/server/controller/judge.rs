@@ -1,6 +1,6 @@
 mod bind;
-mod error;
 mod core;
+mod error;
 mod judger;
 mod manifest;
 mod pod_listener;
@@ -35,8 +35,8 @@ impl ControlService {
             },
             self.job_poster.clone(),
             tx1,
-            self.registry.get_image_url(&judged.to_string()),
-            self.registry.get_image_url(&judger.to_string()),
+            self.registry.pull_url(&judged.to_string()),
+            self.registry.pull_url(&judger.to_string()),
             limit,
         );
 

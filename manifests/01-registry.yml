@@ -43,7 +43,7 @@ metadata:
     name: registry-ingress
 spec:
   rules:
-    - host: registry.dualoj.svc.cluster.local
+    - host: localhost
       http:
         paths:
           - pathType: Prefix
@@ -53,10 +53,6 @@ spec:
                 name: registry
                 port:
                   number: 80
-  tls:
-    - secretName: registry-ingress
-      hosts:
-        - "registry.dualoj.svc.cluster.local"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -64,4 +60,5 @@ metadata:
   name: registry-config
   namespace: dualoj
 data:
-  registry-url: registry.dualoj.svc.cluster.local # Config judger to use local registry
+  registry-push-url: registry.dualoj.svc.cluster.local # Judger push to in-cluster registry
+  registry-pull-url: localhost # K8s need to pull from.

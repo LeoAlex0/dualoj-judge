@@ -28,7 +28,7 @@ impl ControlService {
                 format!("--local=dockerfile={}", dir.path().display()).as_str(),
                 format!(
                     "--output=type=image,name={},registry.insecure=true,push=true",
-                    self.registry.get_image_url(&hashed_id.to_string())
+                    self.registry.push_url(&hashed_id.to_string())
                 )
                 .as_str(),
             ])
@@ -74,6 +74,7 @@ impl ControlService {
         );
 
         task::spawn(async move {
+            let _dir = dir; // Remove when invoke complete
             if let Ok(code) = child.wait().await {
                 if let Some(code) = code.code() {
                     if code == 0 {

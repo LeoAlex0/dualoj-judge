@@ -19,7 +19,7 @@ to optimize performance in most case, or copy & paste code for reusing.
 ### Dependencies
 
 * `kubernetes cluster`, can use kubectl to manage, with an `ingress-controller`.
-  * recommended to use [kind](https://github.com/kubernetes-sigs/kind) to develop.
+  * recommended to use [minikube](https://github.com/kubernetes/minikube) with `ingress` addon to develop.
 * `OpenSSL` or something can be used to generate Self-signed SSL Certifications.
   * recommended to use [mkcert](https://github.com/FiloSottile/mkcert).
 
@@ -27,14 +27,14 @@ And next steps will consider you using a **recommended** configuration.
 
 ### Generate self-signed certification
 
-Cause for using [BuildKit](https://github.com/moby/buildkit) securely, we must
+Cause for using [BuildKit](https://github.com/moby/buildkit) securely, **must**
 generate a self-signed certification first.
 
 You can simply do `tools/mkcerts.sh` for this step.
 
 ### Build & Load image
 
-For `kind` user, you can easily do `tools/kind-update.sh` for this step.
+For `minikube` & `docker` user, you can easily do `tools/minikube-update.sh` for this step.
 
 ### Apply manifests
 
@@ -42,10 +42,10 @@ Just `kubectl apply -f ./manifests`.
 
 ### Update pod.
 
-So if you complete a new feature or just for test, you can use `tools/kind-update.sh`
+So if you complete a new feature or just for test, you can use `tools/minikube-update.sh`
 to build and update using changed new sources.
 
-(`kind` cluster only)
+(For `minikube` & `docker` only)
 
 ### Interface debug
 

@@ -89,52 +89,10 @@ metadata:
   name: judger-controller
   namespace: dualoj
 spec:
+  type: NodePort
   selector:
     app: judger
   ports:
     - port: 50051
       name: grpc
       targetPort: controller
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: judger
-  namespace: dualoj
-  labels:
-    name: judger
-  annotations:
-    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: 50m
-    nginx.ingress.kubernetes.io/server-snippet: |
-      grpc_read_timeout 600s;
-      grpc_send_timeout 600s;
-      client_body_timeout 600s;
-spec:
-  rules:
-    - host: "localhost"
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: judger-controller
-                port:
-                  name: grpc
-    - host: "workstation"
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: judger-controller
-                port:
-                  name: grpc
-  tls:
-    - secretName: ingress-tls
-      hosts:
-        - "localhost"
-        - "workstation"

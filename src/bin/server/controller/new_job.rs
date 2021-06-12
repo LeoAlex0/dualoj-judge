@@ -49,10 +49,7 @@ impl ControlService {
         let uuid_str = uuid.to_string();
 
         // use of internal image, so we can use `latest` tag.
-        let image_name = format!(
-            "{}/{}/{}:latest",
-            self.registry.registry_url, self.registry.username, uuid_str
-        );
+        let image_name = self.registry.pull_url(&uuid_str);
 
         let jobs: Api<Job> = Api::namespaced(client.clone(), self.pod_env.namespace.as_str());
         let pods: Api<Pod> = Api::namespaced(client, self.pod_env.namespace.as_str());

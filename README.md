@@ -1,5 +1,7 @@
 # DualOJ-Judge
 
+[![123](https://github.com/LeoAlex0/dualoj-judge/actions/workflows/rust.yml/badge.svg)](https://github.com/LeoAlex0/dualoj-judge/actions/workflows/rust.yml)
+
 DualOJ-Judge is the judge module of DualOJ (WIP), basically written in Rust language.
 
 WARNING:

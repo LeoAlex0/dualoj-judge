@@ -31,12 +31,6 @@ pub(crate) struct UploadParam {
 }
 
 #[derive(StructOpt)]
-pub(crate) struct BuildParam {
-    /// UUID of uploaded directory
-    pub uuid: uuid::Uuid,
-}
-
-#[derive(StructOpt)]
 pub(crate) struct NewJobParam {
     /// UUID of uploaded directory
     pub uuid: uuid::Uuid,

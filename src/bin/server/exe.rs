@@ -59,7 +59,6 @@ impl TryFrom<Console> for Executor {
         let controller_addr = SocketAddr::new(value.pod_env.ip, value.controller_port);
 
         // TODO!: customized target namespace.
-        let job_api = Api::namespaced(client.clone(), &value.pod_env.namespace);
         let pod_api = Api::namespaced(client, &value.pod_env.namespace);
 
         let controller = ControllerServer::new(ControlService {
@@ -70,7 +69,6 @@ impl TryFrom<Console> for Executor {
             job_poster: tx,
             judger_addr,
 
-            job_api,
             pod_api,
         });
         let judger = JudgerServer::new(JudgeServer::new(rx));

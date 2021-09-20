@@ -6,7 +6,7 @@ mod receive;
 use std::net::SocketAddr;
 
 use futures::channel::mpsc;
-use k8s_openapi::api::{batch::v1::Job, core::v1::Pod};
+use k8s_openapi::api::core::v1::Pod;
 use kube::Api;
 use log::info;
 
@@ -24,7 +24,6 @@ pub(crate) struct ControlService {
     pub judger_addr: SocketAddr,
     pub job_poster: mpsc::Sender<JudgeMsg>,
 
-    pub job_api: Api<Job>,
     pub pod_api: Api<Pod>,
 }
 

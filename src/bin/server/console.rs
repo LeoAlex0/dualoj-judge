@@ -9,10 +9,6 @@ pub(crate) struct Console {
     #[structopt(long, default_value = "10000000", env = "SIZE_LIMIT")]
     pub archive_size_limit: usize,
 
-    /// Buildkitd Client CA Certificate content
-    #[structopt(long, env = "ca.pem")]
-    pub ca_cert: Option<String>,
-
     /// Port for judger controller to listen
     #[structopt(long, env = "CONTROLLER_PORT", default_value = "50051")]
     pub controller_port: u16,

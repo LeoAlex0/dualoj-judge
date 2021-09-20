@@ -36,7 +36,7 @@ where
 {
     fn inspect_err(self, f: F) -> Self {
         if let Err(ref e) = self {
-            (f)(&e);
+            (f)(e);
         }
         self
     }

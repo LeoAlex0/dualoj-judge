@@ -10,7 +10,10 @@ use k8s_openapi::api::core::v1::Pod;
 use kube::Api;
 use log::info;
 
-use dualoj_judge::{proto::{Chunk, EchoMsg, JudgeEvent, UpbuildMsg, Uuid, controller_server::Controller}, to_internal};
+use dualoj_judge::{
+    proto::{controller_server::Controller, Chunk, EchoMsg, JudgeEvent, UpbuildMsg, Uuid},
+    to_internal,
+};
 
 use tonic::{Request, Response, Status};
 

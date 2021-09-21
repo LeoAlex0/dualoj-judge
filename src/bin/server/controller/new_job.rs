@@ -1,6 +1,9 @@
-use std::{collections::BTreeMap, str::FromStr};
+use std::collections::BTreeMap;
 
-use dualoj_judge::proto::{new_job_response, NewJobResponse, Uuid};
+use dualoj_judge::{
+    id::gen::ID,
+    proto::{new_job_response, NewJobResponse},
+};
 use k8s_openapi::{
     api::{
         batch::v1::{Job, JobSpec},
@@ -19,18 +22,13 @@ use super::ControlService;
 impl ControlService {
     pub async fn new_job(
         &self,
-        request: Request<Uuid>,
+        request: Request<ID>,
     ) -> Result<Response<dualoj_judge::proto::NewJobResponse>, Status> {
-        let uuid = uuid::Uuid::from_slice(&request.get_ref().data)
-            .map_err(|e| e.to_string())
-            .map_err(Status::invalid_argument)?;
-
-        let resp = match self.kube_newjob(uuid).await {
+        let req = request.into_inner();
+        let resp = match self.kube_newjob(&req.content).await {
             Ok(uid) => NewJobResponse {
                 code: 0,
-                result: Some(new_job_response::Result::JobUid(Uuid {
-                    data: uid.as_bytes().to_vec(),
-                })),
+                result: Some(new_job_response::Result::JobUid(ID::from(uid))),
             },
             Err(e) => NewJobResponse {
                 code: 1,
@@ -41,15 +39,11 @@ impl ControlService {
         Ok(Response::new(resp))
     }
 
-    async fn kube_newjob(
-        &self,
-        uuid: uuid::Uuid,
-    ) -> Result<uuid::Uuid, Box<dyn std::error::Error>> {
+    async fn kube_newjob(&self, uuid: &str) -> Result<String, Box<dyn std::error::Error>> {
         let client = kube::Client::try_default().await?;
-        let uuid_str = uuid.to_string();
 
         // use of internal image, so we can use `latest` tag.
-        let image_name = self.registry.pull_url(&uuid_str);
+        let image_name = self.registry.pull_url(uuid);
 
         let jobs: Api<Job> = Api::namespaced(client.clone(), self.pod_env.namespace.as_str());
         let pods: Api<Pod> = Api::namespaced(client, self.pod_env.namespace.as_str());
@@ -73,7 +67,7 @@ impl ControlService {
 
                             labels
                         }),
-                        name: Some(uuid_str.clone()),
+                        name: Some(uuid.to_string()),
                         namespace: Some(self.pod_env.namespace.clone()),
                         owner_references: Some(vec![OwnerReference {
                             api_version: "v1".into(),
@@ -127,7 +121,7 @@ impl ControlService {
             })
             .await;
 
-        let res = uuid::Uuid::from_str(created_job.metadata.uid.unwrap_or_default().as_str())?;
+        let res = created_job.metadata.uid.unwrap_or_default();
         Ok(res)
     }
 }

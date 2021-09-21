@@ -1,4 +1,7 @@
-use dualoj_judge::proto::{self, JudgeLimit, JudgeRequest};
+use dualoj_judge::{
+    id::gen::ID,
+    proto::{self, JudgeLimit, JudgeRequest},
+};
 use proto::judge_event::Event;
 
 use crate::console::commands::JudgeParam;
@@ -19,12 +22,8 @@ impl Client {
         let mut resp = self
             .raw
             .judge(JudgeRequest {
-                judged: proto::Uuid {
-                    data: judged.as_bytes().to_vec(),
-                },
-                judger: proto::Uuid {
-                    data: judger.as_bytes().to_vec(),
-                },
+                judged: ID::from(judged),
+                judger: ID::from(judger),
                 limit: JudgeLimit {
                     cpu: cpu_limit,
                     memory: mem_limit,

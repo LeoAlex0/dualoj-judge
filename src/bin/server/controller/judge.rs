@@ -21,8 +21,8 @@ impl ControlService {
     pub(crate) async fn new_judge_job(
         &self,
         limit: JudgeLimit,
-        judged: uuid::Uuid,
-        judger: uuid::Uuid,
+        judged: &str,
+        judger: &str,
     ) -> Result<Response<<ControlService as Controller>::JudgeStream>, Status> {
         let (tx1, rx1) = mpsc::channel(20);
         let (tx2, rx2) = mpsc::channel(20);
@@ -35,8 +35,8 @@ impl ControlService {
             },
             self.job_poster.clone(),
             tx1,
-            self.registry.pull_url(&judged.to_string()),
-            self.registry.pull_url(&judger.to_string()),
+            self.registry.pull_url(judged),
+            self.registry.pull_url(judger),
             limit,
         );
 

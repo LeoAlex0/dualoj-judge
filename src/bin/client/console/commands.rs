@@ -33,16 +33,16 @@ pub(crate) struct UploadParam {
 #[derive(StructOpt)]
 pub(crate) struct NewJobParam {
     /// UUID of uploaded directory
-    pub uuid: uuid::Uuid,
+    pub dir: String,
 }
 
 #[derive(StructOpt)]
 pub(crate) struct JudgeParam {
     /// UUID of judger
-    pub judger: uuid::Uuid,
+    pub judger: String,
 
     /// UUID of judged
-    pub judged: uuid::Uuid,
+    pub judged: String,
 
     /// CPU Limit (in mili-cpu)
     #[structopt(long, default_value = "2000")]

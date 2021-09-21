@@ -10,10 +10,7 @@ use k8s_openapi::api::core::v1::Pod;
 use kube::Api;
 use log::info;
 
-use dualoj_judge::{
-    proto::{controller_server::Controller, Chunk, EchoMsg, JudgeEvent, UpbuildMsg, Uuid},
-    to_internal,
-};
+use dualoj_judge::proto::{controller_server::Controller, Chunk, EchoMsg, JudgeEvent, UpbuildMsg};
 
 use tonic::{Request, Response, Status};
 
@@ -49,8 +46,8 @@ impl Controller for ControlService {
 
     async fn new_job(
         &self,
-        request: Request<Uuid>,
-    ) -> Result<Response<dualoj_judge::proto::NewJobResponse>, Status> {
+        request: tonic::Request<dualoj_judge::proto::Id>,
+    ) -> Result<tonic::Response<dualoj_judge::proto::NewJobResponse>, tonic::Status> {
         self.new_job(request).await
     }
 
@@ -61,8 +58,7 @@ impl Controller for ControlService {
         request: Request<dualoj_judge::proto::JudgeRequest>,
     ) -> Result<Response<Self::JudgeStream>, Status> {
         let req = request.into_inner();
-        let judged = uuid::Uuid::from_slice(&req.judged.data.to_vec()).map_err(to_internal)?;
-        let judger = uuid::Uuid::from_slice(&req.judger.data.to_vec()).map_err(to_internal)?;
-        self.new_judge_job(req.limit, judged, judger).await
+        self.new_judge_job(req.limit, &req.judged.content, &req.judger.content)
+            .await
     }
 }

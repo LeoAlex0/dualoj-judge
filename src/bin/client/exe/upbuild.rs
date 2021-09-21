@@ -4,7 +4,7 @@ use futures::{stream::iter, StreamExt};
 use glob::Pattern;
 use log::{debug, info};
 
-use dualoj_judge::proto::{self, upbuild_msg::MsgOrReturn, Chunk, UpbuildMsg};
+use dualoj_judge::proto::{upbuild_msg::MsgOrReturn, Chunk, UpbuildMsg};
 
 use super::Client;
 use crate::console::commands::UploadParam;
@@ -89,10 +89,11 @@ impl Client {
                             }
                         }
                         Some(MsgOrReturn::Stderr(line)) => eprintln!("{}", line),
-                        Some(MsgOrReturn::Complete(proto::Uuid { data })) => {
-                            let uid = uuid::Uuid::from_slice(&data)?;
+                        Some(MsgOrReturn::Complete(id)) => {
                             if brief {
-                                println!("{}", &uid)
+                                println!("{}", id.content)
+                            } else {
+                                println!("complete: {}", id.content)
                             }
                         }
                     }

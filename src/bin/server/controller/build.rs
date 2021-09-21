@@ -6,9 +6,7 @@ use tokio_util::compat::TokioAsyncReadCompatExt;
 use tonic::{Response, Status};
 
 use crate::controller::ControlService;
-use dualoj_judge::proto::{
-    self, controller_server::Controller, upbuild_msg::MsgOrReturn, UpbuildMsg,
-};
+use dualoj_judge::proto::{controller_server::Controller, upbuild_msg::MsgOrReturn, UpbuildMsg};
 
 use super::receive::Received;
 
@@ -28,7 +26,7 @@ impl ControlService {
                 format!("--local=dockerfile={}", dir.path().display()).as_str(),
                 format!(
                     "--output=type=image,name={},registry.insecure=true,push=true",
-                    self.registry.push_url(&hashed_id.to_string())
+                    self.registry.push_url(&hashed_id.content)
                 )
                 .as_str(),
             ])
@@ -78,11 +76,8 @@ impl ControlService {
             if let Ok(code) = child.wait().await {
                 if let Some(code) = code.code() {
                     if code == 0 {
-                        let uuid = proto::Uuid {
-                            data: hashed_id.as_bytes().to_vec(),
-                        };
                         tx.send(Ok(UpbuildMsg {
-                            msg_or_return: Some(MsgOrReturn::Complete(uuid)),
+                            msg_or_return: Some(MsgOrReturn::Complete(hashed_id)),
                         }))
                         .await
                         .unwrap();

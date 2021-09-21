@@ -5,9 +5,12 @@ use crate::{
     controller::judge::{bind::bind_io, pod_listener::ListenStopReason},
     judge_server::JudgeMsg,
 };
-use dualoj_judge::proto::{
-    job_exit_msg::Code, judge_event::Event, judger::TestResult, JobCreatedMsg, JobErrorMsg,
-    JobExitMsg, JudgeLimit,
+use dualoj_judge::{
+    id::gen::ID,
+    proto::{
+        job_exit_msg::Code, judge_event::Event, judger::TestResult, JobCreatedMsg, JobErrorMsg,
+        JobExitMsg, JudgeLimit,
+    },
 };
 use futures::{
     channel::{mpsc::Sender, oneshot},
@@ -275,8 +278,8 @@ impl Judge {
 impl JudgeSecure {
     pub fn new() -> Self {
         JudgeSecure {
-            judge_id: uuid::Uuid::new_v4().to_string(),
-            apikey: uuid::Uuid::new_v4().to_string(),
+            judge_id: ID::roll().to_string(),
+            apikey: ID::roll().to_string(),
         }
     }
 }

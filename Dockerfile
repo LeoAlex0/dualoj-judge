@@ -1,9 +1,23 @@
+FROM docker.io/library/rust:1.57.0 as planner
+
+WORKDIR /workspace
+
+RUN cargo install cargo-chef
+COPY Cargo.toml .
+COPY Cargo.lock .
+RUN cargo chef prepare --recipe-path recipe.json
+
 FROM docker.io/clux/muslrust:1.57.0 as build
 
 RUN rustup component add rustfmt
 RUN apt update && apt-get install -y protobuf-compiler
+RUN cargo install cargo-chef --locked
 
 WORKDIR /workspace
+RUN mkdir -p src/bin && echo "fn main() {}" > src/bin/server.rs
+
+COPY --from=planner /workspace/recipe.json .
+RUN cargo chef cook --release --recipe-path recipe.json
 
 COPY Cargo.toml .
 COPY Cargo.lock .

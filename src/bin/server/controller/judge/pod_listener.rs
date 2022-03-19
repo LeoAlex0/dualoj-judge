@@ -175,11 +175,10 @@ fn is_pull_image_error(pod: &Pod) -> bool {
     if let Some(status) = container_status {
         status.into_iter().any(|s| {
             s.state
-                .map(|x| {
+                .and_then(|x| {
                     x.waiting
                         .map(|wait| wait.reason.map(|reason| reason == "ImagePullBackOff"))
                 })
-                .flatten()
                 .flatten()
                 .unwrap_or(false)
         })

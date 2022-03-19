@@ -14,17 +14,14 @@ spec:
     metadata:
       labels:
         app: buildkitd
-      annotations:
-        container.apparmor.security.beta.kubernetes.io/buildkitd: unconfined
-        container.seccomp.security.alpha.kubernetes.io/buildkitd: unconfined
     # see buildkit/docs/rootless.md for caveats of rootless mode
     spec:
       containers:
         - name: buildkitd
-          image: moby/buildkit:master-rootless
+          image: moby/buildkit:master
           args:
             - --addr
-            - unix:///run/user/1000/buildkit/buildkitd.sock
+            - unix:///run/buildkit/buildkitd.sock
             - --addr
             - tcp://0.0.0.0:1234
             - --tlscacert
@@ -33,7 +30,6 @@ spec:
             - /certs/cert.pem
             - --tlskey
             - /certs/key.pem
-            - --oci-worker-no-process-sandbox
           # the probe below will only work after Release v0.6.3
           readinessProbe:
             exec:
@@ -54,12 +50,11 @@ spec:
             periodSeconds: 30
           securityContext:
             # To change UID/GID, you need to rebuild the image
-            runAsUser: 1000
-            runAsGroup: 1000
-          # resources:
-          #   limits:
-          #     memory: "4Gi"
-          #     cpu: "2000m"
+            privileged: true
+          resources:
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
           ports:
             - containerPort: 1234
           volumeMounts:

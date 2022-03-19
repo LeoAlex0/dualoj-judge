@@ -28,12 +28,20 @@ to optimize performance in most case, or copy & paste code for reusing.
 
 And next steps will consider you using a **recommended** configuration.
 
+### Start a local minikube cluster
+
+It is recommended to assign at least 4 CPU cores and 8 GB of memory: `minikube start --cpus=4 --memory=8192`
+
 ### Generate self-signed certification
 
 Cause for using [BuildKit](https://github.com/moby/buildkit) securely, **must**
 generate a self-signed certification first.
 
 You can simply do `tools/mkcerts.sh` for this step.
+
+### Upload certificate to container
+
+Run `tools/minikube-upcerts.sh`.
 
 ### Build & Load image
 

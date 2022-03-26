@@ -89,7 +89,7 @@ metadata:
   name: judger-controller
   namespace: dualoj
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app: judger
   ports:

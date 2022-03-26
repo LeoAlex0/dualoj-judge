@@ -1,4 +1,4 @@
-FROM docker.io/library/rust:1.57.0 as planner
+FROM docker.io/library/rust:1.59.0 as planner
 
 WORKDIR /workspace
 
@@ -7,7 +7,7 @@ COPY Cargo.toml .
 COPY Cargo.lock .
 RUN cargo chef prepare --recipe-path recipe.json
 
-FROM docker.io/clux/muslrust:1.57.0 as build
+FROM docker.io/clux/muslrust:1.59.0 as build
 
 RUN rustup component add rustfmt
 RUN apt update && apt-get install -y protobuf-compiler

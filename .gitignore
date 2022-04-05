@@ -13,3 +13,7 @@ examples/*_demo.rs
 
 # Packaged binary pack.
 package
+
+# Mirror related-settings
+/.cargo/config
+/script/setup-mirror.sh

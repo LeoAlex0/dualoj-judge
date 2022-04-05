@@ -45,3 +45,4 @@ uuid = { version = "0.8.2", features = ["v4", "v5"] }
 
 [build-dependencies]
 tonic-build = "*"
+prost-build = { version = "*", features = ["vendored"] }

@@ -21,7 +21,7 @@ COPY build.rs ./build.rs
 COPY src/ ./src
 COPY proto/ ./proto
 
-RUN cargo install --path=. --root=/
+RUN RUSTFLAGS='-C target-feature=-crt-static' cargo install --path=. --root=/
 
 FROM docker.io/library/alpine:3.15
 

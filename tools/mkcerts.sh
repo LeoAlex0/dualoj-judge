@@ -12,6 +12,7 @@ mkdir -p ${DIR}/{buildkitd,judger}
 
   ln -f rootCA.pem buildkitd/ca.pem
   ln -f rootCA.pem judger/ca.pem
+  cp rootCA.pem $HOME/.minikube/certs/rootCA.pem
 
   kubectl -n dualoj create secret generic buildkitd-certs --dry-run=client -o yaml --from-file=./buildkitd >../manifests/01-buildkitd-certs.yaml
   kubectl -n dualoj create secret generic judger-certs --dry-run=client -o yaml --from-file=./judger >../manifests/01-judger-certs.yaml

@@ -21,16 +21,13 @@ to optimize performance in most case, or copy & paste code for reusing.
 
 ### Dependencies
 
-* `kubernetes cluster`, can use kubectl to manage, with an `ingress-controller`.
-  * recommended to use [minikube](https://github.com/kubernetes/minikube) with `ingress` addon to develop.
+* `kubernetes cluster`, can use kubectl to manage, with an `ingress-controller` and an inner `registry`.
+  * recommended to use [minikube](https://github.com/kubernetes/minikube) with `ingress` and `registry` addons for dev.
+  * or if you use a bare metal cluster, setting up registry domain with inner network & outter network in [`manifests/01-registry.yml`](manifests/01-registry.yml)
 * `OpenSSL` or something can be used to generate Self-signed SSL Certifications.
   * recommended to use [mkcert](https://github.com/FiloSottile/mkcert).
 
 And next steps will consider you using a **recommended** configuration.
-
-### Start a local minikube cluster
-
-It is recommended to assign at least 4 CPU cores and 8 GB of memory: `minikube start --cpus=4 --memory=8192`
 
 ### Generate self-signed certification
 
@@ -39,13 +36,13 @@ generate a self-signed certification first.
 
 You can simply do `tools/mkcerts.sh` for this step.
 
-### Upload certificate to container
+### Start a local minikube cluster
 
-Run `tools/minikube-upcerts.sh`.
+It is recommended to assign at least 4 CPU cores and 8 GB of memory, with embeded certification be generated in last step: `minikube start --cpus=4 --memory=8192 --embed-certs`
 
 ### Build & Load image
 
-For `minikube` & `docker` user, you can easily do `tools/minikube-update.sh` for this step.
+For `minikube` user, you can easily do `tools/minikube-update.sh` for this step.
 
 ### Apply manifests
 
@@ -56,7 +53,7 @@ Just `kubectl apply -f ./manifests`.
 So if you complete a new feature or just for test, you can use `tools/minikube-update.sh`
 to build and update using changed new sources.
 
-(For `minikube` & `docker` only)
+(For `minikube` only)
 
 ### Interface debug
 

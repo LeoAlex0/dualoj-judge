@@ -6,6 +6,8 @@
 * tuna 的 [alpine 镜像源](https://mirrors.tuna.tsinghua.edu.cn/help/alpine/)
 * [rsproxy 源](https://rsproxy.cn/)
 
+以下配置以项目根目录为例，`examples/A+B Problem/judger` 的镜像配置与此同理
+
 ## 编译时 crate —— `.cargo/config` 文件
 
 将如下内容写入 `.cargo/config`

@@ -1,1 +1,5 @@
 target
+
+# Mirror settings
+.cargo/config
+/script/setup-mirror.sh

@@ -1,10 +1,9 @@
-FROM docker.io/library/alpine:3.13 AS build
+FROM docker.io/library/gcc:11.2.0 AS build
 
 WORKDIR /workdir
-RUN apk add gcc musl-dev
 
 COPY main.c main.c
-RUN gcc ./main.c -o /bin/main
+RUN gcc -static ./main.c -o /bin/main
 
 FROM docker.io/library/alpine:3.13
 COPY --from=build /bin/main /bin/main

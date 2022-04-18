@@ -11,21 +11,24 @@ repository = "https://github.com/LeoAlex0/dualoj-judge"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-kube = { version = "^0", features = ["ws"] }
+kube = { version = "^0", default-features = false, features = [
+    "client",
+    "rustls-tls",
+    "ws",
+] }
 k8s-openapi = { version = "^0", default-features = false, features = ["v1_20"] }
 tokio = { version = "^1", features = ["full"] }
-tokio-util = { version = "*", features = ["compat"] }
+tokio-util = { version = "0.7", features = ["compat"] }
 futures = "^0.3"
 glob = "0.3.0"
 
 # Data transfer between server & client
-tonic = { version = "*", features = ["tls"] }
-prost = "*"
-prost-types = "*"
+tonic = { version = "0.7", features = ["tls"] }
+prost = "0.10"
+prost-types = "0.10"
 
 # Some async support
-async-trait = "*"
-failure = "*"
+async-trait = "0.1"
 
 # CLI support
 structopt = "^0.3"
@@ -38,11 +41,11 @@ log = "0.4.14"
 pretty_env_logger = "0.4.0"
 
 # Temporate directory for store directory
-temp-dir = "*"
+temp-dir = "0.1"
 
 # Archive image management
 uuid = { version = "0.8.2", features = ["v4", "v5"] }
 
 [build-dependencies]
-tonic-build = "*"
-prost-build = { version = "*", features = ["vendored"] }
+tonic-build = "0.7"
+prost-build = { version = "0.10", features = ["vendored"] }

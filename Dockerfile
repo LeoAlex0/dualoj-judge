@@ -4,7 +4,7 @@ FROM docker.io/library/rust:1.59.0-alpine as build
 COPY script /script
 COPY .cargo $HOME/.cargo
 RUN [[ -f /script/setup-mirror.sh ]] && . /script/setup-mirror.sh || echo "no setup-mirror.sh, skipped"; \
-    apk add g++ openssl-dev cmake make \
+    apk add g++ cmake make \
     && rustup component add rustfmt
 
 WORKDIR /workspace

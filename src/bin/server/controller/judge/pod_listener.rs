@@ -25,7 +25,7 @@ pub struct ListenPodResult {
     pub listen_error: oneshot::Receiver<ListenStopReason>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum SolverStopReason {
     Completed,
     OOMKilled,
@@ -34,7 +34,7 @@ pub enum SolverStopReason {
     Other,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ListenStopReason {
     ImagePullBackOff,
     Error,

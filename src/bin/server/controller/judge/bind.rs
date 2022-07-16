@@ -14,7 +14,7 @@ use crate::controller::judge::{error::JudgeError, JUDGER_CONTAINER_NAME, SOLVER_
 
 /// Bind pods' stdin & stdout of judger & solver
 pub async fn bind_io(pods: Api<Pod>, pod: Pod) -> Result<(), JudgeError> {
-    let pod_name = pod.name();
+    let pod_name = pod.name_any();
 
     info!("{} pod io binding", pod_name);
 

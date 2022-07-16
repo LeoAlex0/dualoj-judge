@@ -68,10 +68,10 @@ pub async fn pod_listener(
             let running = |pod: Pod| async move { run.send(pod).await };
             match event {
                 WatchEvent::Added(pod) => {
-                    info!("{} pod created", pod.name());
+                    info!("{} pod created", pod.name_any());
                 }
                 WatchEvent::Modified(pod) => {
-                    info!("{} current phase: {}", pod.name(), phase(&pod));
+                    info!("{} current phase: {}", pod.name_any(), phase(&pod));
                     match phase(&pod).as_str() {
                         "Running" => {
                             task::spawn(running(pod.clone()));
@@ -89,19 +89,19 @@ pub async fn pod_listener(
                     if let Some(reason) = solver_exit_reason(&pod) {
                         // Judger may need some time to judge solver's output, so no reason to delete pod.
                         if reason != SolverStopReason::Completed {
-                            info!("{} solver exited abnormal", pod.name());
+                            info!("{} solver exited abnormal", pod.name_any());
                             task::spawn(delete(Some(reason)));
                             break;
                         }
                     }
                     if is_pull_image_error(&pod) {
-                        error!("{} ImagePullOff", pod.name());
+                        error!("{} ImagePullOff", pod.name_any());
                         let _ = tx_error.send(ListenStopReason::ImagePullBackOff);
                         break;
                     }
                 }
                 WatchEvent::Deleted(pod) => {
-                    info!("{} deleted. send delete signal", pod.name());
+                    info!("{} deleted. send delete signal", pod.name_any());
                     task::spawn(delete(solver_exit_reason(&pod)));
                     break;
                 }

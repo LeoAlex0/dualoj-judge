@@ -145,7 +145,7 @@ impl Judge {
 
     fn on_killed(&self, reason: Option<SolverStopReason>) -> JoinHandle<()> {
         let mut transfer = self.transfer.clone();
-        info!("{} exit reason: {:?}", self.pod_data.name(), reason);
+        info!("{} exit reason: {:?}", self.pod_data.name_any(), reason);
 
         task::spawn(async move {
             let mut exit_msg = JobExitMsg::default();
@@ -162,7 +162,7 @@ impl Judge {
         let mut transfer = self.transfer.clone();
         error!(
             "{} error: exit before running: {:?}",
-            self.pod_data.name(),
+            self.pod_data.name_any(),
             reason
         );
 
@@ -213,7 +213,7 @@ impl Judge {
         if let Some(canceller) = self.server_canceller {
             let _ = canceller.send(());
         }
-        let name = self.pod_data.name();
+        let name = self.pod_data.name_any();
         info!("{} deleting pod", name);
         let _ = pod_api.delete(&name, &DeleteParams::default()).await;
         info!("{} pod deleted", name);
@@ -236,7 +236,7 @@ impl Judge {
             info!(
                 "{} pod {} created",
                 self.secure.judge_id,
-                self.pod_data.name()
+                self.pod_data.name_any()
             );
             let handler = self.on_created();
             self.handlers.push(handler);

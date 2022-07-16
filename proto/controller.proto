@@ -18,15 +18,15 @@ message UpbuildMsg {
     oneof MsgOrReturn {
         string     Stdout   = 1;
         string     Stderr   = 2;
-        ID    Complete = 3;
+        ID         Complete = 3;
         StatusCode Code     = 255;
     }
 }
 
 message NewJobResponse {
     oneof Result {
-        string  ErrorMsg = 1;
-        ID JobUID   = 2;
+        string ErrorMsg = 1;
+        ID     JobUID   = 2;
     }
     required StatusCode Code = 255;
 }
@@ -41,8 +41,8 @@ message JudgeLimit {
 }
 
 message JudgeRequest {
-    required ID    Judged = 1;
-    required ID    Judger = 2;
+    required ID         Judged = 1;
+    required ID         Judger = 2;
     required JudgeLimit Limit  = 3;
 }
 

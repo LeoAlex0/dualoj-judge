@@ -46,6 +46,9 @@ temp-dir = "0.1"
 # Archive image management
 uuid = { version = "0.8.2", features = ["v4", "v5"] }
 
+# Mocking & Dependency Injecting
+mockall = { version = "0.11.0", features = ["nightly"] }
+
 [build-dependencies]
 tonic-build = "0.7"
 prost-build = { version = "0.10", features = ["vendored"] }

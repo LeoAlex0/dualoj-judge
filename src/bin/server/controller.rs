@@ -27,6 +27,7 @@ pub(crate) struct ControlService {
     pub pod_api: Api<Pod>,
 }
 
+#[mockall::automock]
 #[tonic::async_trait]
 impl Controller for ControlService {
     async fn echo(&self, request: Request<EchoMsg>) -> Result<Response<EchoMsg>, Status> {

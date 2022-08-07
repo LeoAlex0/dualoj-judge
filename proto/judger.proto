@@ -22,8 +22,7 @@ message JudgerRequest {
 message JudgerResponse {
     enum JudgerStatus {
         Ok          = 1;
-        InvalidName = 2;
-        InvalidAuth = 3;
+        InvalidAuth = 2;
         Other       = 255;
     }
     required JudgerStatus Status = 1;

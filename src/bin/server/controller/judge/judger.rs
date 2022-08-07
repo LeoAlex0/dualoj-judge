@@ -22,7 +22,7 @@ pub(crate) async fn set_judge_server(
     job_poster
         .send(JudgeMsg {
             judge_id,
-            api_key,
+            token: api_key,
             on_success: io.on_receive,
             cancel: io.canceller,
         })

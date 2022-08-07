@@ -15,8 +15,9 @@ use tokio::{
 use tonic::{Request, Response, Status};
 
 pub(crate) struct JudgeMsg {
+    /// For log
     pub judge_id: String,
-    pub api_key: String,
+    pub token: String,
     /// Cancel signal, when reached, delete registry.
     pub cancel: oneshot::Receiver<()>,
     /// When get input from judger, trigger this.
@@ -24,11 +25,12 @@ pub(crate) struct JudgeMsg {
 }
 
 struct Key {
-    api_key: String,
+    judge_id: String,
     signal_sender: oneshot::Sender<TestResult>,
 }
 
 pub(crate) struct JudgeServer {
+    // TODO: use redis
     job_list: Arc<Mutex<HashMap<String, Key>>>,
     daemon_handler: JoinHandle<()>,
 }
@@ -56,28 +58,28 @@ async fn receive_daemon(
     request_receiver
         .for_each(|msg| async {
             let cancel_handler = job_list.clone();
-            let name = msg.judge_id.clone();
 
             let mut new_list = job_list.lock().await;
             new_list.insert(
-                msg.judge_id,
+                msg.token.clone(),
                 Key {
-                    api_key: msg.api_key,
+                    judge_id: msg.judge_id.clone(),
                     signal_sender: msg.on_success,
                 },
             );
             drop(new_list);
-            info!("{} registered", name);
+            info!("{} registered", msg.judge_id);
 
             let cancel = msg.cancel;
+            let token = msg.token;
             task::spawn(async move {
                 let e = cancel.await;
                 if e.is_ok() {
-                    warn!("{} cancelled", name);
+                    warn!("{} cancelled", msg.judge_id);
                     let mut cur_map = cancel_handler.lock().await;
-                    cur_map.remove(&name);
+                    cur_map.remove(&token);
                 } else {
-                    error!("{} cancel canceled", name);
+                    error!("{} cancel canceled", msg.judge_id);
                 }
             });
         })
@@ -93,24 +95,17 @@ impl Judger for JudgeServer {
         let req = request.into_inner();
         let mut list = self.job_list.lock().await;
         Ok(Response::new(
-            if let Some((id, val)) = list.remove_entry(&req.judge_id) {
-                if val.api_key == req.api_key {
-                    task::spawn(async move {
-                        let _ = val.signal_sender.send(req.result);
-                    });
-                    info!("{} judger posted", id);
-                    JudgerResponse {
-                        status: JudgerStatus::Ok.into(),
-                    }
-                } else {
-                    list.insert(id, val);
-                    JudgerResponse {
-                        status: JudgerStatus::InvalidAuth.into(),
-                    }
+            if let Some((_, info)) = list.remove_entry(&req.token) {
+                task::spawn(async move {
+                    let _ = info.signal_sender.send(req.result);
+                });
+                info!("{} judger posted", info.judge_id);
+                JudgerResponse {
+                    status: JudgerStatus::Ok.into(),
                 }
             } else {
                 JudgerResponse {
-                    status: JudgerStatus::InvalidName.into(),
+                    status: JudgerStatus::InvalidAuth.into(),
                 }
             },
         ))

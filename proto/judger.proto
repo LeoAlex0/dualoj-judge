@@ -14,10 +14,8 @@ message TestResult {
 }
 
 message JudgerRequest {
-    // from EnvVar "JUDGE_ID"
-    required string JudgeID = 1;
-    // from EnvVar "APIKEY"
-    required string     ApiKey = 2;
+    // from EnvVar "TOKEN"
+    required string     Token  = 1;
     required TestResult Result = 255;
 }
 

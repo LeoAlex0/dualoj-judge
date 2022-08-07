@@ -22,6 +22,8 @@ pub(crate) struct ControlService {
     pub buildkit: console::buildkit::Param,
     pub pod_env: console::pod_env::Param,
     pub judger_addr: SocketAddr,
+
+    // TODO: use redis/cache to specify listening status.
     pub job_poster: mpsc::Sender<JudgeMsg>,
 
     pub pod_api: Api<Pod>,
